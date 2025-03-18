@@ -333,7 +333,7 @@ struct OHashMap {
   using NonObliviousTableType = EM::CacheFrontVector::Vector<
       BucketType, sizeof(BucketType),
       EM::CacheFrontVector::EncryptType::ENCRYPT_AND_AUTH_FRESH, 1024>;
-  using TableType = std::conditional_t<isOblivious, ObliviousTableType,
+  using TableType = std::conditional_t<isOblivious != NON_OBLIVIOUS, ObliviousTableType,
                                        NonObliviousTableType>;
   TableType table0, table1;
   OHashMapIndexer<K, PositionType> indexer;

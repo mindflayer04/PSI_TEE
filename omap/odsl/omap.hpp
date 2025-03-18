@@ -1321,7 +1321,7 @@ struct OMap {
         throw std::runtime_error(
             "OPosMap size not set. Call SetSize before initialization.");
       }
-      if constexpr (omap.keyPosMap.isObliviousPosMap) {
+      if constexpr (OMap::PosMapType::isObliviousPosMap) {
         nonObliviousPosMap =
             new NonObliviousPosMap(map.size(), additionalCacheBytes);
       }
@@ -1351,7 +1351,7 @@ struct OMap {
      * @param value
      */
     void Insert(const K& key, const V& value) {
-      if constexpr (!omap.keyPosMap.isObliviousPosMap) {
+      if constexpr (OMap::PosMapType::isObliviousPosMap) {
         omap.Insert(key, value);
       } else {
         omap.InsertWithCustomPosMap(key, value, *nonObliviousPosMap);
@@ -1376,7 +1376,7 @@ struct OMap {
      *
      */
     void Finalize() {
-      if constexpr (omap.keyPosMap.isObliviousPosMap) {
+      if constexpr (OMap::PosMapType::isObliviousPosMap) {
         omap.keyPosMap.InitFromNonOblivious(*nonObliviousPosMap);
         delete nonObliviousPosMap;
       }
