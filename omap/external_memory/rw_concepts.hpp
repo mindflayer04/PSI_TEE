@@ -7,11 +7,11 @@
  */
 
 template <class T, class... U>
-concept any_of = std::disjunction_v<std::is_same<T, U>...>;
+concept _any_of = std::disjunction_v<std::is_same<T, U>...>;
 
 template <typename Reader, typename T = typename Reader::value_type>
 concept Readable = requires(Reader reader) {
-  { reader.read() } -> any_of<T, const T&>;
+  { reader.read() } -> _any_of<T, const T&>;
   { reader.eof() } -> std::same_as<bool>;
   { reader.size() } -> std::same_as<size_t>;
 };
