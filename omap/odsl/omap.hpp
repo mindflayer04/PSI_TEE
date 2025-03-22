@@ -1352,9 +1352,9 @@ struct OMap {
      */
     void Insert(const K& key, const V& value) {
       if constexpr (OMap::PosMapType::isObliviousPosMap) {
-        omap.Insert(key, value);
-      } else {
         omap.InsertWithCustomPosMap(key, value, *nonObliviousPosMap);
+      } else {
+        omap.Insert(key, value);
       }
     }
 
