@@ -158,7 +158,10 @@ BEARSSL_SOURCES := \
 
 
 Enclave_C_Files := $(BEARSSL_SOURCES) 
-Enclave_Cpp_Files := Enclave/Enclave.cpp $(wildcard Enclave/TrustedLibrary/*.cpp)
+Enclave_Cpp_Files := Enclave/Enclave.cpp \
+	$(wildcard Enclave/TrustedLibrary/*.cpp) \
+# 	../../omap/common/encutils.cpp
+
 Enclave_Include_Paths := -IEnclave -I$(SGX_SDK)/include -I$(SGX_SDK)/include/libcxx -I$(SGX_SDK)/include/tlibc -I../../omap -IEnclave/bearssl/include -IEnclave/bearssl/src/bearssl
 
 Enclave_Flags := -fvisibility=hidden -fpie -fstack-protector -fno-builtin-printf -march=native $(Enclave_Include_Paths)
@@ -282,6 +285,8 @@ $(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
 	@echo "LINK =>  $@"
 
 ######## Enclave Objects ########
+# ../../omap/common/encutils.o: ../../omap/common/encutils.cpp
+# 	$(CXX) $(Enclave_Cpp_Flags) -c $< -o $@
 
 Enclave/Enclave_t.h: $(SGX_EDGER8R) Enclave/Enclave.edl
 	@cd Enclave && $(SGX_EDGER8R) --trusted ../Enclave/Enclave.edl --search-path ../Enclave --search-path $(SGX_SDK)/include
@@ -294,7 +299,7 @@ Enclave/Enclave_t.o: Enclave/Enclave_t.c
 	@echo "CC   <=  $<"
 
 Enclave/%.o: Enclave/%.cpp
-	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(Enclave_Cpp_Flags) -c $< -o $@
+	@$(CXX) $(SGX_COMMON_CXXFLAGS) -fpermissive $(Enclave_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
 $(Enclave_C_Objects): %.o: %.c Enclave/Enclave_t.h
