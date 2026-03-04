@@ -25,6 +25,8 @@
 using namespace ODSL;
 EM::Backend::MemServerBackend* EM::Backend::g_DefaultBackend = nullptr;
 
+OMap<uint64_t, int64_t> *g_globalMap = nullptr;
+
 #define ASSERT_EQ(a, b)                             \
   if ((a) != (b)) {                                 \
     printf("assert failed at line %d\n", __LINE__); \
@@ -1157,5 +1159,42 @@ void ecall_omap_perf() {
   } catch (std::exception& e) {
     printf("exception: %s\n", e.what());
   }
+  return;
+}
+
+
+void createMap(){
+  if(g_globalMap != nullptr){
+    delete g_globalMap;
+    g_globalMap = nullptr;
+  }
+
+  size_t mapCapacity = 1e6;
+  g_globalMap = new OMap<uint64_t,int64_t> (mapCapacity);
+
+  auto initializer = g_globalMap->NewInitContext();
+  for(int i=0;i<1e5;i++){
+    initializer->Insert(i,3*i);
+  }
+
+  initializer->Finalize();
+  delete initializer;
+
+  printf("Nice! OMap successfully created and initialized!\n");
+}
+
+void ecall_createMap(){
+  if (EM::Backend::g_DefaultBackend) {
+    delete EM::Backend::g_DefaultBackend;
+  }
+  size_t BackendSize = 1e10;
+  EM::Backend::g_DefaultBackend =
+      new EM::Backend::MemServerBackend(BackendSize);
+  try {
+    createMap();
+  } catch (std::exception& e) {
+    printf("exception: %s\n", e.what());
+  }
+
   return;
 }

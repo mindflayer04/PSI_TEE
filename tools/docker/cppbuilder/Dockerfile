@@ -59,4 +59,5 @@ SHELL ["/bin/bash", "-c"]
 RUN ln -s /usr/lib/libsgx_urts.so /usr/lib/libsgx_urts.so.2
 
 WORKDIR /builder/
+
 CMD ["bash"]
