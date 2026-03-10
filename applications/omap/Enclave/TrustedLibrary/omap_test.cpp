@@ -13,6 +13,8 @@
 #include "odsl/recursive_oram.hpp"
 #include "sgx_thread.h"
 #include "sgx_trts.h"
+#include "algorithm/kway_butterfly_sort.hpp"
+#include "algorithm/kway_distri_sort.hpp"
 
 #define MB << 20
 
@@ -1169,12 +1171,27 @@ void createMap(){
     g_globalMap = nullptr;
   }
 
+  std::vector<uint64_t> v(100);
+  for(int i=0;i<100;i++){
+    v[i] = i+1;
+  }
+
+  EM::NonCachedVector::Vector<uint64_t> myvec(v.begin(),v.end()); 
+
+  EM::Algorithm::KWayButterflyOShuffle(myvec.begin(),myvec.end());
+
   size_t mapCapacity = 1e6;
   g_globalMap = new OMap<uint64_t,int64_t> (mapCapacity);
 
+  // EM::NonCachedVector::Vector<uint64_t>::type::PrefetchReader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
+  //   for (int i = 0; i < (int)myvec.size(); ++i) {
+  //       uint64_t elem = reader.read();
+  //       printf("Sorted[%d]: %lu\n", i, elem);
+  //   }
+  //   printf("-----------------------------------------\n");
   auto initializer = g_globalMap->NewInitContext();
   for(int i=0;i<1e5;i++){
-    initializer->Insert(i,3*i);
+    initializer->Insert(i+200,3*i);
   }
 
   initializer->Finalize();
