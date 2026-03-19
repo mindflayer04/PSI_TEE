@@ -106,10 +106,10 @@ struct ParOMap {
                                    double logFailProb = -40) {
     auto satisfy = [&](uint64_t n) {
       double logSf =
-          Algorithm::binomLogSf(n, batchSize, 1.0 / (double)shardCount);
+          EM::Algorithm::binomLogSf(n, batchSize, 1.0 / (double)shardCount);
       return logSf < logFailProb;
     };
-    return Algorithm::lowerBound(divRoundUp(batchSize, shardCount), batchSize,
+    return EM::Algorithm::lowerBound(divRoundUp(batchSize, shardCount), batchSize,
                                  satisfy);
   }
 
@@ -126,11 +126,11 @@ struct ParOMap {
   static uint64_t numRealPerBkt(uint64_t bktSize, uint64_t shardCount,
                                 double logFailProb = -60) {
     auto satisfy = [&](uint64_t numDummy) {
-      double logSf = Algorithm::binomLogSf(
+      double logSf = EM::Algorithm::binomLogSf(
           bktSize, (bktSize - numDummy) * shardCount, 1.0 / shardCount);
       return logSf < logFailProb;
     };
-    return bktSize - Algorithm::lowerBound(1UL, bktSize - 1, satisfy);
+    return bktSize - EM::Algorithm::lowerBound(1UL, bktSize - 1, satisfy);
   }
 
   /**

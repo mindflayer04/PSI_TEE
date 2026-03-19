@@ -180,6 +180,22 @@ struct NonCachedServerFrontendInstance {
     }
   }
 
+  void Write(const IndexType i, const T& in, uint32_t counter) {
+    static_assert(AUTH);
+    if constexpr (LATE_INIT) {
+      modified[i] = true;
+    }
+    PERFCTR_INCREMENT(writeCount);
+
+    typename T::Encrypted_t inEnc;
+    nounce_t nounceCopy = nounce;
+    nounceCopy.index ^= i;
+    nounceCopy.counter ^= counter;
+    inEnc.Encrypt(in, nounceCopy.bytes);
+    backend.Write(slot.base + i * sizeOfT, sizeOfT,
+                  reinterpret_cast<const uint8_t*>(&inEnc));
+  }
+
   std::vector<Encrypted_t> writeBackBuffer;
   std::vector<uint64_t> writeBackBufferOffsets;
 
@@ -192,6 +208,11 @@ struct NonCachedServerFrontendInstance {
     // #else
     //     Write(i, in);
     // #endif
+  }
+
+  uint64_t WriteLazy(const IndexType i, const T& in, uint32_t counter) {
+    Write(i, in, counter);
+    return 0;
   }
 
   void Read(const IndexType i, T& out) {
@@ -213,6 +234,24 @@ struct NonCachedServerFrontendInstance {
     }
   }
 
+  void Read(const IndexType i, T& out, uint32_t counter) {
+    static_assert(AUTH);
+    if constexpr (LATE_INIT) {
+      if (!modified[i]) {
+        out = defaultVal;
+        return;
+      }
+    }
+    PERFCTR_INCREMENT(readCount);
+    nounce_t nounceCopy = nounce;
+    nounceCopy.index ^= i;
+    nounceCopy.counter ^= counter;
+    typename T::Encrypted_t inEnc;
+    backend.Read(slot.base + i * sizeOfT, sizeOfT,
+                 reinterpret_cast<uint8_t*>(&inEnc));
+    inEnc.Decrypt(out, nounceCopy.bytes);
+  }
+
   std::vector<Encrypted_t> readBuffer;
   std::vector<uint64_t> readBufferOffsets;
   std::vector<T*> readBufferOuts;
@@ -224,6 +263,11 @@ struct NonCachedServerFrontendInstance {
     // #else
     //     Read(i, out);
     // #endif
+  }
+
+  uint64_t ReadLazy(const IndexType i, T& out, uint32_t counter) {
+    Read(i, out, counter);
+    return 0;
   }
 
   void flushRead() {

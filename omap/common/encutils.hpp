@@ -38,10 +38,21 @@ void aes_256_gcm_encrypt(uint64_t plaintextSize, uint8_t* plaintext,
                          const uint8_t iv[IV_SIZE], uint8_t tag[MAC_SIZE],
                          uint8_t* ciphertext,
                          br_aes_x86ni_ctr_keys* aes_ctx_ptr = &aes_ctx);
+
+void aes_256_gcm_encrypt(uint64_t plaintextSize, uint8_t *plaintext,
+                         const uint8_t key[AES_BLOCK_SIZE],
+                         uint8_t iv[AES_BLOCK_SIZE],
+                         uint8_t tag[AES_BLOCK_SIZE], uint8_t *ciphertext);
+                         
 bool aes_256_gcm_decrypt(uint64_t ciphertextSize, uint8_t* ciphertext,
                          const uint8_t iv[IV_SIZE], uint8_t tag[MAC_SIZE],
                          uint8_t* plaintext,
                          br_aes_x86ni_ctr_keys* aes_ctx_ptr = &aes_ctx);
+
+bool aes_256_gcm_decrypt(uint64_t ciphertextSize, uint8_t *ciphertext,
+                         const uint8_t key[AES_BLOCK_SIZE],
+                         uint8_t iv[AES_BLOCK_SIZE],
+                         uint8_t tag[AES_BLOCK_SIZE], uint8_t *plaintext);
 
 void aes_256_ctr_encrypt(uint64_t plaintextSize, uint8_t* plaintext,
                          const uint8_t iv[IV_SIZE], uint8_t* ciphertext,

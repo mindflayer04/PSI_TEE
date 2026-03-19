@@ -188,4 +188,24 @@ void OrShuffle(Vec& vec) {
   OrShuffle(vec.begin(), vec.end());
 }
 
+template <class Iterator, class Check>
+void GoodrichCompact(Iterator begin, Iterator end, const Check& isMarked) {
+  size_t n = end - begin;
+  std::vector<uint64_t> dist(n);
+  uint64_t numMarked = 0;
+  for (size_t i = 0; i < n; ++i) {
+    dist[i] = i - numMarked;
+    CMOV(isMarked(*(begin + i)), numMarked, numMarked + 1);
+  }
+  uint64_t level = GetLogBaseTwo(GetNextPowerOfTwo(n));
+  for (uint64_t i = 0; i < level; ++i) {
+    for (uint64_t j = (1UL << i); j < n; ++j) {
+      bool jMarked = isMarked(*(begin + j));
+      bool swapFlag = jMarked & (!!(dist[j] & ((2UL << i) - 1)));
+      condSwap(swapFlag, *(begin + j), *(begin + j - (1UL << i)));
+      CMOV(swapFlag, dist[j - (1UL << i)], (dist[j] >> (i + 1) << (i + 1)));
+    }
+  }
+}
+
 }  // namespace Algorithm

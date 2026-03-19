@@ -13,7 +13,7 @@
 void ActualMain(void) {
   sgx_status_t ret = SGX_ERROR_UNEXPECTED;
 
-  ret = ecall_omap(global_eid);
+  // ret = ecall_omap(global_eid);
 
   ret = ecall_createMap(global_eid);
 

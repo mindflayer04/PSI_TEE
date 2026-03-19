@@ -259,3 +259,83 @@ struct GlobalRandomKeySetter {
 };
 
 GlobalRandomKeySetter global_random_key_setter;
+
+#define SGXSD_AES_GCM_IV_SIZE 12
+#define SGXSD_AES_GCM_MAC_SIZE 16
+#define SGXSD_AES_GCM_KEY_SIZE 32
+#define SGXSD_CURVE25519_KEY_SIZE 32
+#define SGXSD_SHA256_HASH_SIZE 32
+
+
+// In enclave mode we can't use openssl, so we use libsodium, which should be
+// packed in the enclave directly.
+void aes_init() {
+  static int init = 0;
+  if (init == 0) {
+    // Assert(crypto_aead_aes256gcm_is_available());
+    // int rv = RAND_load_file("/dev/urandom", 32);
+    init = 1;
+  }
+}
+
+
+sgx_status_t sgxsd_aes_gcm_run(bool encrypt,
+                               const uint8_t p_key[SGXSD_AES_GCM_KEY_SIZE],
+                               const void *p_src, uint32_t src_len, void *p_dst,
+                               const uint8_t p_iv[SGXSD_AES_GCM_KEY_SIZE],
+                               const void *p_aad, uint32_t aad_len,
+                               uint8_t p_mac[SGXSD_AES_GCM_KEY_SIZE]) {
+  if (p_key == NULL || ((p_src == NULL || p_dst == NULL) && src_len != 0) ||
+      p_iv == NULL || (p_aad == NULL && aad_len != 0) || p_mac == NULL) {
+    return SGX_ERROR_INVALID_PARAMETER;
+  }
+  br_aes_x86ni_ctr_keys aes_ctx;
+  br_aes_x86ni_ctr_init(&aes_ctx, p_key, SGXSD_AES_GCM_KEY_SIZE);
+  br_gcm_context aes_gcm_ctx;
+  br_gcm_init(&aes_gcm_ctx, &aes_ctx.vtable, &br_ghash_pclmul);
+  br_gcm_reset(&aes_gcm_ctx, p_iv, SGXSD_AES_GCM_IV_SIZE);
+  if (aad_len != 0) {
+    br_gcm_aad_inject(&aes_gcm_ctx, p_aad, aad_len);
+  }
+  br_gcm_flip(&aes_gcm_ctx);
+  if (src_len != 0) {
+    memmove(p_dst, p_src, src_len);
+    br_gcm_run(&aes_gcm_ctx, encrypt, p_dst, src_len);
+  }
+  bool tag_res;
+  if (encrypt) {
+    br_gcm_get_tag(&aes_gcm_ctx, p_mac);
+    tag_res = true;
+  } else {
+    tag_res = br_gcm_check_tag(&aes_gcm_ctx, p_mac);
+  }
+  sgxsd_br_clear_stack();
+  memset_s(&aes_ctx, sizeof(aes_ctx), 0, sizeof(aes_ctx));
+  memset_s(&aes_gcm_ctx, sizeof(aes_gcm_ctx), 0, sizeof(aes_gcm_ctx));
+  if (tag_res) {
+    return SGX_SUCCESS;
+  } else {
+    if (p_dst != NULL) {
+      memset_s(p_dst, src_len, 0, src_len);
+    }
+    return SGX_ERROR_MAC_MISMATCH;
+  }
+}
+
+void aes_256_gcm_encrypt(uint64_t plaintextSize, uint8_t *plaintext,
+                         const uint8_t key[AES_BLOCK_SIZE],
+                         uint8_t iv[AES_BLOCK_SIZE],
+                         uint8_t tag[AES_BLOCK_SIZE], uint8_t *ciphertext) {
+  aes_init();
+  sgxsd_aes_gcm_run(true, key, plaintext, plaintextSize, ciphertext, iv,
+                    nullptr, 0, tag);
+}
+
+bool aes_256_gcm_decrypt(uint64_t ciphertextSize, uint8_t *ciphertext,
+                         const uint8_t key[AES_BLOCK_SIZE],
+                         uint8_t iv[AES_BLOCK_SIZE],
+                         uint8_t tag[AES_BLOCK_SIZE], uint8_t *plaintext) {
+  aes_init();
+  return 0 == sgxsd_aes_gcm_run(false, key, ciphertext, ciphertextSize,
+                                plaintext, iv, nullptr, 0, tag);
+}

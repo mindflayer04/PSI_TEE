@@ -128,3 +128,18 @@ size_t reverseBits(size_t num, int bits) {
   }
   return reverse_num;
 }
+
+template <typename Iterator>
+static auto getVecProduct(Iterator begin, Iterator end) {
+  using NumType = typename std::iterator_traits<Iterator>::value_type;
+  NumType product = 1;
+  for (auto it = begin; it != end; ++it) {
+    product *= *it;
+  }
+  return product;
+}
+
+template <typename Vec>
+static auto getVecProduct(const Vec& vec) {
+  return getVecProduct(vec.begin(), vec.end());
+}

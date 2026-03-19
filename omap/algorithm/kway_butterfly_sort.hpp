@@ -3,6 +3,7 @@
 #include "external_memory/noncachedvector.hpp"
 #include "param_select.hpp"
 #include "sort_building_blocks.hpp"
+#include "common/utils.hpp"
 
 /// This file implements the flex-way butterfly osort and oshuffle algorithms.
 
@@ -58,18 +59,18 @@ class ButterflySorter {
   uint64_t numBucketFit;   // number of buckets that can fit in the heap
   uint64_t numElementFit;  // number of elements that can fit in the heap
 
-  KWayButterflyParams KWayParams =
+  Algorithm::KWayButterflyParams KWayParams =
       {};  // parameters for flex-way butterfly o-sort
 
-  Vector<T>
+  EM::NonCachedVector::Vector<T>
       mergeSortFirstLayer;  // the first layer of external-memory merge sort
   std::vector<
-      std::pair<typename Vector<T>::Iterator, typename Vector<T>::Iterator>>
+      std::pair<typename EM::NonCachedVector::Vector<T>::Iterator, typename EM::NonCachedVector::Vector<T>::Iterator>>
       mergeSortRanges;  // pairs of iterators that specifies each sorted range
                         // in the first layer of external-memory merge sort
 
   // writer for the first layer of external-memory merge sort
-  typename Vector<T>::Writer mergeSortFirstLayerWriter;
+  typename EM::NonCachedVector::Vector<T>::Writer mergeSortFirstLayerWriter;
 
   typename IOVector::PrefetchReader inputReader;  // input reader
   typename IOVector::Writer outputWriter;         // output writer
@@ -215,7 +216,7 @@ class ButterflySorter {
         for (size_t i = 0; i < numInternalWay; ++i) {
           auto it = batchBegin + i * Z;
           Assert(it + Z <= batch + numElementFit);
-          BitonicSort(it, it + Z, cmpTag);
+          ::Algorithm::BitonicSort(it, it + Z, cmpTag);
           // for shuffling, output directly
           if constexpr (task == KWAYBUTTERFLYOSHUFFLE) {
             for (auto fromIt = it; fromIt != it + Z; ++fromIt) {
@@ -292,7 +293,7 @@ void KWayButterflyOShuffle(Iterator begin, Iterator end, uint32_t inAuth,
   if (N <= 512) {
     std::vector<T> Mem(N);
     CopyIn(begin, end, Mem.begin(), inAuth);
-    OrShuffle(Mem);
+    ::Algorithm::OrShuffle(Mem);
     CopyOut(Mem.begin(), Mem.end(), begin, inAuth + 1);
     return;
   }
@@ -318,7 +319,7 @@ void KWayButterflySort(Iterator begin, Iterator end, uint32_t inAuth,
   sorter.sort();
   const auto& mergeRanges = sorter.getMergeSortBatchRanges();
   ExtMergeSort(begin, end, mergeRanges, inAuth + 1,
-               heapSize / (sizeof(T) * Vector<T>::item_per_page * 2));
+               heapSize / (sizeof(T) * EM::NonCachedVector::Vector<T>::item_per_page * 2));
 }
 
 template <typename Vec>

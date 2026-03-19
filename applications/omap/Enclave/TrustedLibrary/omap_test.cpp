@@ -640,6 +640,8 @@ void testOMap() {
   ocall_measure_time(&end);
   timediff = end - start;
   printf("oram find time %f us\n", (double)timediff * 1e-3 / (double)round);
+
+  printf("Done\n");
 }
 
 using ETH_Addr = Bytes<32>;
@@ -1179,23 +1181,38 @@ void createMap(){
   EM::NonCachedVector::Vector<uint64_t> myvec(v.begin(),v.end()); 
 
   EM::Algorithm::KWayButterflyOShuffle(myvec.begin(),myvec.end());
+  
+  printf("Shuffled succensfully!\n");
 
-  size_t mapCapacity = 1e6;
+  size_t mapCapacity = 1e4;
   g_globalMap = new OMap<uint64_t,int64_t> (mapCapacity);
 
-  // EM::NonCachedVector::Vector<uint64_t>::type::PrefetchReader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
-  //   for (int i = 0; i < (int)myvec.size(); ++i) {
-  //       uint64_t elem = reader.read();
-  //       printf("Sorted[%d]: %lu\n", i, elem);
-  //   }
+  EM::NonCachedVector::Vector<uint64_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
+    for (int i = 0; i < (int)myvec.size(); ++i) {
+        uint64_t elem = reader.read();
+        printf("Shuffled[%d]: %lu\n", i, elem);
+    }
   //   printf("-----------------------------------------\n");
-  auto initializer = g_globalMap->NewInitContext();
-  for(int i=0;i<1e5;i++){
-    initializer->Insert(i+200,3*i);
+  // auto initializer = g_globalMap->NewInitContext();
+  // for(int i=0;i<1e2;i++){
+  //   initializer->Insert(i+200,3*i);
+  // }
+
+  // initializer->Finalize();
+  // delete initializer;
+
+  for(int i=0;i<1e2;i++){
+    g_globalMap->Insert(i+200,3*i);
   }
 
-  initializer->Finalize();
-  delete initializer;
+  for(int i=201;i<300;i+=2){
+    bool found = false;
+    int64_t val;
+    found = g_globalMap->Find(i,val);
+    if(found){
+      printf("Found key %d, value %d\n", i, val);
+    }
+  }
 
   printf("Nice! OMap successfully created and initialized!\n");
 }

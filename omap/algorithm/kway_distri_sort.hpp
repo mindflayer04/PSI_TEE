@@ -224,7 +224,7 @@ std::vector<Block<T>> sampleForPivots(IOIterator begin, IOIterator end,
         np -= chosen;
         --Np;
       } else {
-        uint64_t z = UniformRandom(1, N);
+        uint64_t z = UniformRandom(1UL, N);
         bool chosen = z <= expectedSampleSize;
         auto realData = Block<T>();
         realData.setData(inputReader.read(), count);

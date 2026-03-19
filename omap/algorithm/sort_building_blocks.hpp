@@ -183,42 +183,42 @@ void Permute(Iterator begin, Iterator end, MarkIterator marksBegin,
 /// @param end end iterator
 /// @param marksBegin begin iterator of the marks
 /// @param marksEnd end iterator of the marks
-template <class Iterator, class MarkIterator>
-INLINE void InterleaveBaseCase(Iterator begin, Iterator end,
-                               MarkIterator marksBegin, MarkIterator marksEnd,
-                               const uint16_t k) {
-  static constexpr StaticSort<3> staticSort3;
-  static constexpr StaticSort<4> staticSort4;
-  static constexpr StaticSort<5> staticSort5;
-  static constexpr StaticSort<6> staticSort6;
-  static constexpr StaticSort<7> staticSort7;
-  static constexpr StaticSort<8> staticSort8;
-  auto iter_pair = std::make_pair(begin, marksBegin);
-  // k doesn't need to be oblivious
-  switch (k) {
-    case 3:
-      staticSort3(iter_pair);
-      break;
-    case 4:
-      staticSort4(iter_pair);
-      break;
-    case 5:
-      staticSort5(iter_pair);
-      break;
-    case 6:
-      staticSort6(iter_pair);
-      break;
-    case 7:
-      staticSort7(iter_pair);
-      break;
-    case 8:
-      staticSort8(iter_pair);
-      break;
-    default:
-      X_LOG("wrong way partition\n");
-      abort();
-  }
-}
+// template <class Iterator, class MarkIterator>
+// INLINE void InterleaveBaseCase(Iterator begin, Iterator end,
+//                                MarkIterator marksBegin, MarkIterator marksEnd,
+//                                const uint16_t k) {
+//   static constexpr StaticSort<3> staticSort3;
+//   static constexpr StaticSort<4> staticSort4;
+//   static constexpr StaticSort<5> staticSort5;
+//   static constexpr StaticSort<6> staticSort6;
+//   static constexpr StaticSort<7> staticSort7;
+//   static constexpr StaticSort<8> staticSort8;
+//   auto iter_pair = std::make_pair(begin, marksBegin);
+//   // k doesn't need to be oblivious
+//   switch (k) {
+//     case 3:
+//       staticSort3(iter_pair);
+//       break;
+//     case 4:
+//       staticSort4(iter_pair);
+//       break;
+//     case 5:
+//       staticSort5(iter_pair);
+//       break;
+//     case 6:
+//       staticSort6(iter_pair);
+//       break;
+//     case 7:
+//       staticSort7(iter_pair);
+//       break;
+//     case 8:
+//       staticSort8(iter_pair);
+//       break;
+//     default:
+//       X_LOG("wrong way partition\n");
+//       abort();
+//   }
+// }
 
 /// @brief Interleave rearranges elements in [begin, end) so that their
 /// corresponding marks appear like 0 1 2 ... k-1 0 1 2 ... k-1 0 ...
@@ -238,7 +238,7 @@ void Interleave(Iterator begin, Iterator end, MarkIterator marksBegin,
   Assert(marksEnd - marksBegin == end - begin);
   if (size == k) {
     // 23% of runtime
-    InterleaveBaseCase(begin, end, marksBegin, marksEnd, k);
+    ::Algorithm::InterleaveBaseCase(begin, end, marksBegin, marksEnd, k);
     return;
   }
   EdgeRec<uint64_t> rec(k);
@@ -377,17 +377,17 @@ void MergeSplitInPlace(Iterator begin, Iterator end, Indicator indicator,
       InterleaveTwoWayPartition(begin, end, isMarked);
       break;
     case OR_COMPACT:
-      OrCompact(begin, end, isMarked);
+      ::Algorithm::OrCompact(begin, end, isMarked);
       break;
     case GOODRICH_COMPACT:
-      GoodrichCompact(begin, end, isMarked);
+      ::Algorithm::GoodrichCompact(begin, end, isMarked);
       break;
     case BITONIC:
       auto cmp = [=](const auto& element1, const auto& element2) {
         return (element1.isMarked(indicator) > (element2.isMarked(indicator))) |
                ((element2.isDummy() & !(element2.isMarked(indicator))));
       };
-      BitonicSort(begin, end, cmp);
+      ::Algorithm::BitonicSort(begin, end, cmp);
   }
 }
 

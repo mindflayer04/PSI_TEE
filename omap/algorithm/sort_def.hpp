@@ -214,5 +214,5 @@ INLINE void CMOV(const uint64_t& condition, EM::Algorithm::TaggedT<T>& A,
   CMOV(condition, A.v, B.v);
 }
 
-OVERLOAD_TSET_CXCHG(EM::Algorithm::Block<T>, typename T)
+OVERLOAD_TSET_CXCHG(EM::Algorithm::Block<T>, typename T);
 OVERLOAD_TSET_CXCHG(EM::Algorithm::TaggedT<T>, typename T);
