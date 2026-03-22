@@ -1,0 +1,11 @@
+make[1]: Entering directory '/home/z/Desktop/psi_tee/oram/applications/omap'
+GEN  =>  App/Enclave_u.h
+CC   <=  App/Enclave_u.c
+CXX  <=  App/App.cpp
+CXX  <=  App/TrustedLibrary/Libcxx.cpp
+LINK =>  omap.elf
+GEN  =>  Enclave/Enclave_t.h
+CC   <=  Enclave/Enclave_t.c
+CXX  <=  Enclave/Enclave.cpp
+CXX  <=  Enclave/TrustedLibrary/omap_test.cpp
+make[1]: Leaving directory '/home/z/Desktop/psi_tee/oram/applications/omap'
