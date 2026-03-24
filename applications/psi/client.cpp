@@ -101,7 +101,7 @@ std::vector<uint8_t> load_key(const std::string& filename) {
 
     std::vector<uint8_t> public_modulus(256, 0);
     
-    // BN_bn2binpad guarantees the output is strictly padded to 256 bytes (Big-Endian)
+
     if (BN_bn2binpad(n, public_modulus.data(), 256) <= 0) {
         std::cerr << "Failed to convert BIGNUM to binary array." << std::endl;
         BN_free(n);
@@ -109,7 +109,7 @@ std::vector<uint8_t> load_key(const std::string& filename) {
         return {};
     }
 
-    // --- CRITICAL FIX: Convert OpenSSL Big-Endian back to Native Little-Endian ---
+
     std::reverse(public_modulus.begin(), public_modulus.end());
 
     BN_free(n);
@@ -118,18 +118,20 @@ std::vector<uint8_t> load_key(const std::string& filename) {
     return public_modulus;
 }
 
+std::vector<uint8_t> convert_uint64_to_256bit(uint64_t value) {
+    std::vector<uint8_t> result(32, 0);
+    for (int i = 0; i < 8; i++) {
+        result[i] = (value >> (i * 8)) & 63;
+    }
+    return result;
+}
+
 int main(){
     auto public_modulus = load_key("public_key.pem");
     if (public_modulus.empty()) {
         std::cerr << "Failed to load public key." << std::endl;
         return 1;
     }
-
-    std::vector<uint8_t> secret_data(32,0);
-    secret_data[0] = 123;
-
-    auto ciphertext = encrypt_256bit(public_modulus.data(), secret_data.data());
-
 
     int sock = 0;
     struct sockaddr_in serv_addr;
@@ -142,7 +144,6 @@ int main(){
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(SERVER_PORT);
 
-    // Convert IPv4 address from text to binary form
     if (inet_pton(AF_INET, SERVER_IP, &serv_addr.sin_addr) <= 0) {
         std::cerr << "Invalid address / Address not supported" << std::endl;
         return 1;
@@ -153,11 +154,54 @@ int main(){
         return 1;
     }
 
-    // Send exactly 256 bytes
-    send(sock, ciphertext.data(), ciphertext.size(), 0);
-    std::cout << "Encrypted query sent to Enclave Host successfully." << std::endl;
+
+    uint32_t set_size = (1<<20); 
+    uint32_t net_set_size = htonl(set_size);
+
+    auto start = std::chrono::high_resolution_clock::now();
+    send(sock, &net_set_size, sizeof(net_set_size), 0);
+
+    std::cout << "Sent set size: " << set_size << std::endl;
+    std::vector<std::vector<uint8_t>> ciphertexts(set_size);
+    auto start_enc = std::chrono::high_resolution_clock::now();
+    for(uint32_t i=0;i<set_size;i++){
+        uint64_t current_query_value = 123 + i; 
+        
+        std::vector<uint8_t> secret_data = convert_uint64_to_256bit(current_query_value);
+        auto ciphertext = encrypt_256bit(public_modulus.data(), secret_data.data());
+
+        if (ciphertext.empty()) {
+            std::cerr << "Encryption failed for element " << (i + 1) << ". Aborting." << std::endl;
+            return 1;
+        }
+        ciphertexts[i] = std::move(ciphertext);
+    }
+
+    auto end_enc = std::chrono::high_resolution_clock::now();
+    auto duration_enc = std::chrono::duration_cast<std::chrono::seconds>(end_enc - start_enc);
+    std::cout << "Total encryption time for " << set_size << " elements: " << duration_enc.count() << " s" << std::endl;
+
+    
+    for (uint32_t i = 0; i < set_size; i++) {
+        uint64_t current_query_value = 123 + i; 
+        
+        std::vector<uint8_t> secret_data = convert_uint64_to_256bit(current_query_value);
+        auto ciphertext = ciphertexts[i];
+
+
+        int sent = send(sock, ciphertext.data(), ciphertext.size(), 0);
+        if (sent != 256) {
+            std::cerr << "Failed to send complete ciphertext for element " << (i + 1) << std::endl;
+            break;
+        }
+
+        // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
+    }
 
     close(sock);
-    
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    std::cout << "Total time taken: " << duration.count()*(1e-6) << " s" << std::endl;
+
     return 0;
 }
