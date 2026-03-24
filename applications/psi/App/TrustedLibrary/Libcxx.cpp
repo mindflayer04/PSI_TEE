@@ -264,6 +264,7 @@ void ActualMain(void) {
 
     std::cout << "\n[Host] Server is listening for clients on port " << SERVER_PORT << "..." << std::endl;
 
+
     int cnt = 0;
     while (cnt<1) {
         if ((client_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
@@ -271,34 +272,51 @@ void ActualMain(void) {
             continue;
         }
 
-        std::vector<uint8_t> incoming_ciphertext(256, 0);
-        int bytes_read = read(client_socket, incoming_ciphertext.data(), 256);
+        // 1. Read the network-formatted set size from the client
+        uint32_t net_set_size = 0;
+        int size_read = read(client_socket, &net_set_size, sizeof(net_set_size));
 
-        if (bytes_read == 256) {
-            std::cout << "[Host] Received 256-byte encrypted query from client." << std::endl;
+        if (size_read == sizeof(net_set_size)) {
+            uint32_t set_size = ntohl(net_set_size); // Convert to native integer
+            std::cout << "[Host] Client connected. Incoming set size: " << set_size << std::endl;
 
-            // Pass the ciphertext into the enclave to check for intersection
-            sgx_status_t intersection_status;
-            status = ecall_check_intersection(
-                global_eid, 
-                &intersection_status, 
-                sealed_rsa_buffer.data(), 
-                rsa_sealed_size, 
-                incoming_ciphertext.data()
-            );
+            for (uint32_t i = 0; i < set_size; i++) {
+                std::vector<uint8_t> incoming_ciphertext(256, 0);
+                
+                int total_read = 0;
+                while (total_read < 256) {
+                    int bytes_read = read(client_socket, incoming_ciphertext.data() + total_read, 256 - total_read);
+                    if (bytes_read <= 0) break; // Client disconnected or network error
+                    total_read += bytes_read;
+                }
 
-            if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
-                std::cerr << "[Host] Enclave failed to process query." << std::endl;
-            } else {
-                std::cout << "[Host] Query processed successfully." << std::endl;
+                if (total_read == 256) {
+                    sgx_status_t intersection_status;
+                    status = ecall_check_intersection(
+                        global_eid, 
+                        &intersection_status, 
+                        sealed_rsa_buffer.data(), 
+                        rsa_sealed_size, 
+                        incoming_ciphertext.data()
+                    );
+
+                    if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
+                        std::cerr << "[Host] Enclave failed to process query " << (i + 1) << "." << std::endl;
+                    } else {
+                        // Success is printed from within the enclave, but we can log the host side too
+                        // std::cout << "[Host] Query " << (i + 1) << " processed successfully." << std::endl;
+                    }
+                } else {
+                    std::cerr << "[Host] Incomplete or invalid data received for query " << (i + 1) << ". Aborting batch." << std::endl;
+                    break;
+                }
             }
         } else {
-            std::cerr << "[Host] Incomplete or invalid data received from client." << std::endl;
+            std::cerr << "[Host] Failed to read valid set size from client." << std::endl;
         }
 
         close(client_socket);
-        std::cout << "[Host] Waiting for next query...\n" << std::endl;
-
+        std::cout << "[Host] Client disconnected. Waiting for next connection...\n" << std::endl;
         cnt++;
     }
 }

@@ -186,7 +186,7 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
   int64_t value;
   bool found = g_globalMap->Find(key, value);
 
-  printf("[Enclave] Element %s in the intersection\n", found ? "is" : "is not");
+  // printf("[Enclave] Element %s in the intersection\n", found ? "is" : "is not");
 
   return status;
 }
@@ -198,8 +198,8 @@ void createMap(){
     g_globalMap = nullptr;
   }
 
-  uint64_t start, end;
-  int mx_size = 1e3;
+  uint64_t start, end, start_insert;
+  int mx_size = (1<<20);
 
   std::vector<uint64_t> v(mx_size);
   for(int i=0;i<mx_size;i++){
@@ -219,15 +219,15 @@ void createMap(){
 
   EM::NonCachedVector::Vector<uint64_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
-  
-  ocall_measure_time(&start);
+  ocall_measure_time(&start_insert);
   for(int i=0;i<mx_size;i++){
     int64_t val = reader.read();
     g_globalMap->Insert(val,1);
   }
   ocall_measure_time(&end);
-  timediff = end - start;
+  timediff = end - start_insert;
   printf("[Enclave] Insert time %f s\n", (double)timediff * 1e-9);
+  printf("[Enclave] Total Preprocessing for set size %d time %f s\n", mx_size, (double)(end - start) * 1e-9);
 }
 
 void ecall_createMap(){
