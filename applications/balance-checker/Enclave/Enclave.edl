@@ -1,4 +1,0 @@
-enclave {
-  from "TrustedLibrary/omap.edl" import *;
-  from "sgx_tstdc.edl" import *;
-};

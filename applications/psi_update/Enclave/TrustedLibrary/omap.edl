@@ -1,0 +1,45 @@
+enclave {
+  trusted {
+    public sgx_status_t ecall_createMap(
+      [in, count=set_size] const uint64_t* input_set,
+      size_t set_size
+    );
+
+    public sgx_status_t ecall_insert_element(uint64_t element);
+
+    public sgx_status_t ecall_delete_element(uint64_t element);
+
+    public uint32_t ecall_get_rsa_sealed_size();
+
+    public sgx_status_t ecall_generate_rsa_key(
+      [out, size=sealed_size] uint8_t* p_sealed_buffer,
+      uint32_t sealed_size,
+      [out, size=256] uint8_t* p_public_modulus
+    );
+
+    public sgx_status_t ecall_check_decryption(
+      [in,size=sealed_size]const uint8_t* p_sealed_buffer,
+      uint32_t sealed_size,
+      [in,size=256]const uint8_t* ciphertext
+    );
+
+    public sgx_status_t ecall_check_intersection(
+      [in,size=sealed_size] const uint8_t* p_sealed_buffer,
+      uint32_t sealed_size,
+      [in,size=256] const uint8_t* ciphertext,
+      [out, size=1] uint8_t* found
+    );
+  };
+
+  untrusted {
+    void ocall_FAIL();
+    void ocall_print_string([in, string] const char *str);
+    uint64_t ocall_measure_time();
+    uint8_t* ocall_InitServer(uint64_t sizeOfT, uint64_t N_);
+    void ocall_DeleteServer();
+    void ocall_Read_Batch(uint64_t batchSize, uint64_t pageBytes, uint64_t totalBytes, [in, count=batchSize] uint64_t* offsets,  [out, count=totalBytes] uint8_t* buffer);
+    void ocall_Read(uint64_t pos, uint64_t length, [out, count=length] uint8_t* page);
+    void ocall_Write_Batch(uint64_t batchSize, uint64_t pageBytes, uint64_t totalBytes, [in, count=batchSize] uint64_t* offsets,  [in, count=totalBytes] uint8_t* buffer);
+    void ocall_Write(uint64_t pos, uint64_t length, [in, count=length] const uint8_t* page);
+  };
+};
