@@ -328,4 +328,4 @@ clean:
 	@rm -f client
 
 client: client.cpp
-	g++ -oclient client.cpp -lcrypto
+	g++ -O3 -std=c++17 -oclient client.cpp -lcrypto

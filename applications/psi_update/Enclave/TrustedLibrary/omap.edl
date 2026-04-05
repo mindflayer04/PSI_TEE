@@ -1,13 +1,13 @@
 enclave {
   trusted {
     public sgx_status_t ecall_createMap(
-      [in, count=set_size] const uint64_t* input_set,
-      size_t set_size
+        [in, count=set_size] const __uint128_t* input_set, 
+        size_t set_size
     );
 
-    public sgx_status_t ecall_insert_element(uint64_t element);
+    public sgx_status_t ecall_insert_element(__uint128_t element);
 
-    public sgx_status_t ecall_delete_element(uint64_t element);
+    public sgx_status_t ecall_delete_element(__uint128_t element);
 
     public uint32_t ecall_get_rsa_sealed_size();
 

@@ -32,7 +32,7 @@
 using namespace ODSL;
 EM::Backend::MemServerBackend* EM::Backend::g_DefaultBackend = nullptr;
 
-OMap<uint64_t, int64_t> *g_globalMap = nullptr;
+OMap<__uint128_t, int64_t> *g_globalMap = nullptr;
 
 #define ASSERT_EQ(a, b)                             \
   if ((a) != (b)) {                                 \
@@ -174,6 +174,14 @@ uint64_t convert_256bit_to_uint64(const uint8_t* val) {
     return result;
 }
 
+__uint128_t convert_256bit_to_uint128(const uint8_t* val) {
+    __uint128_t result = 0;
+    for (int i = 0; i < 16; i++) {
+        result |= (((__uint128_t)val[i]) << (i * 8));
+    }
+    return result;
+}
+
 sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t sealed_size, const uint8_t* ciphertext, uint8_t* found){
   uint8_t internal_256bit_val[32] = {0};
   sgx_status_t status = internal_decrypt_rsa_256bit(p_sealed_buffer, ciphertext, internal_256bit_val);
@@ -181,7 +189,7 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
     return status;
   }
 
-  uint64_t key = convert_256bit_to_uint64(internal_256bit_val);
+  __uint128_t key = convert_256bit_to_uint128(internal_256bit_val);
 
   int64_t value;
   bool found_intersection = g_globalMap->Find(key, value);
@@ -197,7 +205,7 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
 }
 
 
-void createMap(const uint64_t* input_set, size_t set_size){
+void createMap(const __uint128_t* input_set, size_t set_size){
   if(g_globalMap != nullptr){
     delete g_globalMap;
     g_globalMap = nullptr;
@@ -206,12 +214,12 @@ void createMap(const uint64_t* input_set, size_t set_size){
   uint64_t start, end, start_insert;
   // int mx_size = (1<<15);
 
-  std::vector<uint64_t> v(set_size);
+  std::vector<__uint128_t> v(set_size);
   for(int i=0;i<set_size;i++){
     v[i] = input_set[i];
   }
 
-  EM::NonCachedVector::Vector<uint64_t> myvec(v.begin(),v.end()); 
+  EM::NonCachedVector::Vector<__uint128_t> myvec(v.begin(),v.end()); 
 
   ocall_measure_time(&start);
   EM::Algorithm::KWayButterflyOShuffle(myvec.begin(),myvec.end());
@@ -220,13 +228,13 @@ void createMap(const uint64_t* input_set, size_t set_size){
   printf("[Enclave] Shuffle time %f s\n", (double)timediff * 1e-9);
 
   size_t mapCapacity = set_size * 2;
-  g_globalMap = new OMap<uint64_t,int64_t> (mapCapacity);
+  g_globalMap = new OMap<__uint128_t,int64_t> (mapCapacity);
 
-  EM::NonCachedVector::Vector<uint64_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
+  EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
   ocall_measure_time(&start_insert);
   for(int i=0;i<set_size;i++){
-    int64_t val = reader.read();
+    __uint128_t val = reader.read();
     g_globalMap->Insert(val,1);
   }
   ocall_measure_time(&end);
@@ -235,17 +243,7 @@ void createMap(const uint64_t* input_set, size_t set_size){
   printf("[Enclave] Total Preprocessing for set size %d time %f s\n", set_size, (double)(end - start) * 1e-9);
 }
 
-sgx_status_t ecall_insert_element(uint64_t element){
-  g_globalMap->Insert(element,1);
-  return SGX_SUCCESS;
-}
-
-sgx_status_t ecall_delete_element(uint64_t element){
-  g_globalMap->Erase(element);
-  return SGX_SUCCESS;
-}
-
-sgx_status_t ecall_createMap(const uint64_t* input_set, size_t set_size){
+sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
@@ -258,5 +256,16 @@ sgx_status_t ecall_createMap(const uint64_t* input_set, size_t set_size){
     printf("exception: %s\n", e.what());
   }
 
+  return SGX_SUCCESS;
+}
+
+
+sgx_status_t ecall_insert_element(__uint128_t element){
+  g_globalMap->Insert(element,1);
+  return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_delete_element(__uint128_t element){
+  g_globalMap->Erase(element);
   return SGX_SUCCESS;
 }

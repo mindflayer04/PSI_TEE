@@ -26,6 +26,9 @@
 #include "external_memory/server/enclaveMemServer_untrusted.hpp"
 #endif
 
+#define XXH_INLINE_ALL
+#include "xxhash.h"
+
 #define SERVER_PORT 8080
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
@@ -156,12 +159,22 @@ bool save_rsa_public_key_to_pem(const std::string& filename, const uint8_t* publ
     return true;
 }
 
+__uint128_t hash(const std::string& str) {
+    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
+    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+}
+
 void ActualMain(void) {
     sgx_status_t ret = SGX_SUCCESS;
     sgx_status_t status = SGX_SUCCESS;
     sgx_status_t ecall_status;
 
     std::vector<uint64_t> server_set = {10,20,30,40,50};
+    std::vector<__uint128_t> hashed_set;
+
+    for(const auto& val : server_set){
+        hashed_set.push_back(hash(std::to_string(val)));
+    }
 
     uint32_t rsa_sealed_size = 0;
     status = ecall_get_rsa_sealed_size(global_eid, &rsa_sealed_size);
@@ -204,7 +217,7 @@ void ActualMain(void) {
     }
 
     sgx_status_t map_status;
-    ret = ecall_createMap(global_eid,&map_status, server_set.data(), server_set.size());
+    ret = ecall_createMap(global_eid,&map_status, hashed_set.data(), hashed_set.size());
 
     if(ret==SGX_SUCCESS && map_status==SGX_SUCCESS){
         std::cout << "[Host] Map created successfully in enclave." << std::endl;

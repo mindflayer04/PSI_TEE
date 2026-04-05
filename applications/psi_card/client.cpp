@@ -20,6 +20,9 @@
 #define SERVER_PORT 8080
 #define SERVER_IP "127.0.0.1"
 
+#define XXH_INLINE_ALL
+#include "xxhash.h"
+
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
     unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00}; 
@@ -121,10 +124,24 @@ std::vector<uint8_t> load_key(const std::string& filename) {
 std::vector<uint8_t> convert_uint64_to_256bit(uint64_t value) {
     std::vector<uint8_t> result(32, 0);
     for (int i = 0; i < 8; i++) {
-        result[i] = (value >> (i * 8)) & 63;
+        result[i] = (value >> (i * 8)) & 255;
     }
     return result;
 }
+
+std::vector<uint8_t> convert_uint128_to_256bit(__uint128_t value) {
+    std::vector<uint8_t> result(32, 0);
+    for (int i = 0; i < 16; i++) {
+        result[i] = (value >> (i * 8)) & 255;
+    }
+    return result;
+}
+
+__uint128_t hash(const std::string& str) {
+    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
+    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+}
+
 
 int main(){
     auto public_modulus = load_key("public_key.pem");
@@ -155,19 +172,28 @@ int main(){
     }
 
 
-    uint32_t set_size = 10; 
+    std::vector<uint64_t> client_set = {20,30,40,50, 60, 70, 80, 90, 100};
+    uint32_t set_size = client_set.size();
+
+    std::vector<__uint128_t> hashed_set;
+    for(const auto& val : client_set){
+        hashed_set.push_back(hash(std::to_string(val)));
+    }
+
     uint32_t net_set_size = htonl(set_size);
 
     auto start = std::chrono::high_resolution_clock::now();
     send(sock, &net_set_size, sizeof(net_set_size), 0);
 
     std::cout << "Sent set size: " << set_size << std::endl;
+
+    // Encrypt each query element and send to the server
     std::vector<std::vector<uint8_t>> ciphertexts(set_size);
     auto start_enc = std::chrono::high_resolution_clock::now();
     for(uint32_t i=0;i<set_size;i++){
-        uint64_t current_query_value = 10*i;
+         __uint128_t current_query_value = hashed_set[i];
         
-        std::vector<uint8_t> secret_data = convert_uint64_to_256bit(current_query_value);
+        std::vector<uint8_t> secret_data = convert_uint128_to_256bit(current_query_value);
         auto ciphertext = encrypt_256bit(public_modulus.data(), secret_data.data());
 
         if (ciphertext.empty()) {
@@ -183,11 +209,7 @@ int main(){
 
     
     for (uint32_t i = 0; i < set_size; i++) {
-        uint64_t current_query_value = 123 + i; 
-        
-        std::vector<uint8_t> secret_data = convert_uint64_to_256bit(current_query_value);
         auto ciphertext = ciphertexts[i];
-
 
         int sent = send(sock, ciphertext.data(), ciphertext.size(), 0);
         if (sent != 256) {
