@@ -11,6 +11,13 @@
 #include <openssl/err.h>
 #include <algorithm>
 
+//random headers
+
+#include <unordered_set>
+#include <random>
+#include <cstdint>
+
+
 // Network headers
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -30,6 +37,23 @@
 #include "xxhash.h"
 
 #define SERVER_PORT 8080
+
+
+std::vector<uint64_t> generateDistinctRandom(uint64_t n) {
+    std::unordered_set<uint64_t> unique_vals;
+    
+    // Random number generator
+    std::random_device rd;              // seed
+    std::mt19937_64 gen(rd());         // 64-bit Mersenne Twister
+    std::uniform_int_distribution<uint64_t> dist;
+
+    while (unique_vals.size() < n) {
+        unique_vals.insert(dist(gen));
+    }
+
+    // Convert to vector
+    return std::vector<uint64_t>(unique_vals.begin(), unique_vals.end());
+}
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
     unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00}; 
@@ -169,7 +193,7 @@ void ActualMain(void) {
     sgx_status_t status = SGX_SUCCESS;
     sgx_status_t ecall_status;
 
-    std::vector<uint64_t> server_set = {10,20,30,40,50};
+    std::vector<uint64_t> server_set = generateDistinctRandom(200);
     std::vector<__uint128_t> hashed_set;
 
     for(const auto& val : server_set){
@@ -321,12 +345,12 @@ void ActualMain(void) {
                     if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
                         std::cerr << "[Host] Enclave failed to process query " << (i + 1) << "." << std::endl;
                     } else {
-                        if(intersection_found){
-                            std::cout << "[Host] Query " << (i + 1) << ": Element is in the intersection." << std::endl;
-                        }
-                        else{
-                            std::cout << "[Host] Query " << (i + 1) << ": Element is NOT in the intersection." << std::endl;
-                        }
+                        // if(intersection_found){
+                        //     std::cout << "[Host] Query " << (i + 1) << ": Element is in the intersection." << std::endl;
+                        // }
+                        // else{
+                        //     std::cout << "[Host] Query " << (i + 1) << ": Element is NOT in the intersection." << std::endl;
+                        // }
                     }
                 } else {
                     std::cerr << "[Host] Incomplete or invalid data received for query " << (i + 1) << ". Aborting batch." << std::endl;
