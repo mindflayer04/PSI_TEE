@@ -187,7 +187,10 @@ int main(){
     std::cout << "Public key received successfully." << std::endl;
 
 
-    std::vector<uint64_t> client_set = {10,20,30,40,50, 60, 70, 80, 90, 100};
+    std::vector<uint64_t> client_set;
+    for(uint64_t i=0;i<(1<<11);i++){
+        client_set.push_back(i+1);
+    }
     uint32_t set_size = client_set.size();
 
     std::vector<__uint128_t> hashed_set;

@@ -233,9 +233,23 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
   ocall_measure_time(&start_insert);
+  std::vector<uint64_t> vals;
+  for(int i=0;i<32;i++){
+    vals.push_back(1ULL << i);
+  }
+
+  int j = 0;
+  uint64_t temp_time;
   for(int i=0;i<set_size;i++){
     __uint128_t val = reader.read();
     g_globalMap->Insert(val,1);
+    int done = i+1;
+    if(done==vals[j]){
+      ocall_measure_time(&temp_time);
+      uint64_t insert_time = temp_time - start_insert;
+      printf("[Enclave] Inserted %d elements, time %f s\n", done, (double)insert_time * 1e-9);
+      j++;
+    }
   }
   ocall_measure_time(&end);
   timediff = end - start_insert;
