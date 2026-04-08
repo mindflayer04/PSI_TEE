@@ -312,6 +312,15 @@ void ActualMain(void) {
             continue;
         }
 
+        // send the public key to the client.
+        std::cout << "[Host] Client connected. Sending public key..." << std::endl;
+        int sent_bytes = send(client_socket, public_modulus.data(), 256, 0);
+        if (sent_bytes != 256) {
+            std::cerr << "[Host] Failed to send complete public key to client." << std::endl;
+            close(client_socket);
+            continue;
+        }
+
         // 1. Read the network-formatted set size from the client
         uint32_t net_set_size = 0;
         int size_read = read(client_socket, &net_set_size, sizeof(net_set_size));

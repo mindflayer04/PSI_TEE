@@ -18,7 +18,7 @@
 #include <cstring>
 
 #define SERVER_PORT 8080
-#define SERVER_IP "127.0.0.1"
+#define SERVER_IP "10.5.31.163"
 
 #define XXH_INLINE_ALL
 #include "xxhash.h"
@@ -144,11 +144,12 @@ __uint128_t hash(const std::string& str) {
 
 
 int main(){
-    auto public_modulus = load_key("public_key.pem");
-    if (public_modulus.empty()) {
-        std::cerr << "Failed to load public key." << std::endl;
-        return 1;
-    }
+    // auto public_modulus = load_key("public_key.pem");
+
+    // if (public_modulus.empty()) {
+    //     std::cerr << "Failed to load public key." << std::endl;
+    //     return 1;
+    // }
 
     int sock = 0;
     struct sockaddr_in serv_addr;
@@ -170,6 +171,20 @@ int main(){
         std::cerr << "Connection Failed. Is the SGX Host running?" << std::endl;
         return 1;
     }
+
+    std::vector<uint8_t> public_modulus(256, 0);
+    int total_key_read = 0;
+    std::cout << "Connected to server. Receiving public key..." << std::endl;
+    
+    while (total_key_read < 256) {
+        int bytes_read = read(sock, public_modulus.data() + total_key_read, 256 - total_key_read);
+        if (bytes_read <= 0) {
+            std::cerr << "Failed to receive public key from server. Disconnected." << std::endl;
+            return 1;
+        }
+        total_key_read += bytes_read;
+    }
+    std::cout << "Public key received successfully." << std::endl;
 
 
     std::vector<uint64_t> client_set = {10,20,30,40,50, 60, 70, 80, 90, 100};
