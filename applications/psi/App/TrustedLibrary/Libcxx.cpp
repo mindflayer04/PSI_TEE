@@ -56,7 +56,7 @@ std::vector<uint64_t> generateDistinctRandom(uint64_t n) {
 }
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
-    unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00}; 
+    unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00};
 
     OSSL_PARAM params[3];
     params[0] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N, (unsigned char*)public_modulus, 256);
@@ -193,7 +193,8 @@ void ActualMain(void) {
     sgx_status_t status = SGX_SUCCESS;
     sgx_status_t ecall_status;
 
-    std::vector<uint64_t> server_set = generateDistinctRandom(200);
+    std::vector<uint64_t> server_set = generateDistinctRandom(1<<16);
+    // std::vector<uint64_t> server_set = {10,30,50,90};
     std::vector<__uint128_t> hashed_set;
 
     for(const auto& val : server_set){
