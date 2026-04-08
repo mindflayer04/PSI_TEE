@@ -193,7 +193,7 @@ void ActualMain(void) {
     sgx_status_t status = SGX_SUCCESS;
     sgx_status_t ecall_status;
 
-    std::vector<uint64_t> server_set = generateDistinctRandom(1<<16);
+    std::vector<uint64_t> server_set = generateDistinctRandom(1<<25);
     // std::vector<uint64_t> server_set = {10,30,50,90};
     std::vector<__uint128_t> hashed_set;
 
