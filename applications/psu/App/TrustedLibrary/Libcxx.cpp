@@ -173,7 +173,8 @@ void ActualMain(void) {
     std::vector<__uint128_t> hashed_set;
 
     for(const auto& val : server_set){
-        hashed_set.push_back(hash(std::to_string(val)));
+        // hashed_set.push_back(hash(std::to_string(val)));
+        hashed_set.push_back(val);
     }
 
     uint32_t rsa_sealed_size = 0;

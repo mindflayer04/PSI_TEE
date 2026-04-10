@@ -177,7 +177,8 @@ int main(){
 
     std::vector<__uint128_t> hashed_set;
     for(const auto& val : client_set){
-        hashed_set.push_back(hash(std::to_string(val)));
+        // hashed_set.push_back(hash(std::to_string(val)));
+        hashed_set.push_back(val);
     }
 
     uint32_t net_set_size = htonl(set_size);
