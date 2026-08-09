@@ -39,21 +39,6 @@
 #define SERVER_PORT 8080
 
 
-std::vector<uint64_t> generateDistinctRandom(uint64_t n) {
-    std::unordered_set<uint64_t> unique_vals;
-    
-    // Random number generator
-    std::random_device rd;              // seed
-    std::mt19937_64 gen(rd());         // 64-bit Mersenne Twister
-    std::uniform_int_distribution<uint64_t> dist;
-
-    while (unique_vals.size() < n) {
-        unique_vals.insert(dist(gen));
-    }
-
-    // Convert to vector
-    return std::vector<uint64_t>(unique_vals.begin(), unique_vals.end());
-}
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
     unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00};
@@ -193,13 +178,7 @@ void ActualMain(void) {
     sgx_status_t status = SGX_SUCCESS;
     sgx_status_t ecall_status;
 
-    std::vector<uint64_t> server_set = generateDistinctRandom(1<<25);
-    // std::vector<uint64_t> server_set = {10,30,50,90};
-    std::vector<__uint128_t> hashed_set;
-
-    for(const auto& val : server_set){
-        hashed_set.push_back(hash(std::to_string(val)));
-    }
+    size_t set_size = 1ULL << 30; // 1 Billion elements
 
     uint32_t rsa_sealed_size = 0;
     status = ecall_get_rsa_sealed_size(global_eid, &rsa_sealed_size);
@@ -242,7 +221,7 @@ void ActualMain(void) {
     }
 
     sgx_status_t map_status;
-    ret = ecall_createMap(global_eid,&map_status, hashed_set.data(), hashed_set.size());
+    ret = ecall_createMap(global_eid, &map_status, set_size);
 
     if(ret==SGX_SUCCESS && map_status==SGX_SUCCESS){
         std::cout << "[Host] Map created successfully in enclave." << std::endl;

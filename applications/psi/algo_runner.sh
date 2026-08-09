@@ -9,7 +9,7 @@ SGX_MODE=SIM # HW or SIM
 MIN_ENCLAVE_SIZE=32768   # 32 GB
 MAX_ENCLAVE_SIZE=32768
 CORE_ID=5 # the cpu core id to run the program
-DISK_IO=0 # 0: no disk IO, 1: disk IO
+DISK_IO=1 # 0: no disk IO, 1: disk IO
 TCS_NUM=2
 
 if [ $SGX_MODE = HW ]

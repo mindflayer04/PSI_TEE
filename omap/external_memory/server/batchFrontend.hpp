@@ -76,8 +76,8 @@ struct NonCachedBatchServerFrontend
       // needs to record the index to authenticate freshness
       typename _Base::nounce_t& nounceCopy = nounces[bufferIdx];
       nounceCopy = _Base::nounce;
-      nounceCopy.identifiers.indexPart ^= i;
-      nounceCopy.identifiers.counterPart ^= auth_counter;
+      nounceCopy.index ^= i;
+      nounceCopy.counter ^= auth_counter;
     }
     if constexpr (ENCRYPTED) {
       typename T::Encrypted_t& inEnc = encs[bufferIdx];
@@ -119,8 +119,8 @@ struct NonCachedBatchServerFrontend
       typename T::Encrypted_t& inEnc = encs[bufferIdx];
       if constexpr (AUTH) {
         typename _Base::nounce_t nounceCopy = _Base::nounce;
-        nounceCopy.identifiers.indexPart ^= i;
-        nounceCopy.identifiers.counterPart ^= auth_counter;
+        nounceCopy.index ^= i;
+        nounceCopy.counter ^= auth_counter;
         inEnc.Encrypt(in, nounceCopy.bytes);
       } else {
         inEnc.Encrypt(in);
