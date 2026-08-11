@@ -3,7 +3,7 @@ source /startsgxenv.sh
 
 cp ../../omap/common/encutils.cpp ./Enclave/TrustedLibrary/encutils.cpp
 
-SGX_MODE=SIM # HW or SIM
+SGX_MODE=HW # HW or SIM
 
 # Algorithms:
 MIN_ENCLAVE_SIZE=32768   # 32 GB
