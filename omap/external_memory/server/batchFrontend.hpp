@@ -5,10 +5,12 @@ namespace MemoryServer {
 template <typename T, typename _BackendType = ::EM::Backend::MemServerBackend,
           bool ENCRYPTED = true, bool AUTH = true, bool LATE_INIT = true>
 struct NonCachedBatchServerFrontend
-    : NonCachedServerFrontendInstance<T, _BackendType, ENCRYPTED, AUTH,
-                                      LATE_INIT> {
-  typedef NonCachedServerFrontendInstance<T, _BackendType, ENCRYPTED, AUTH,
-                                          LATE_INIT>
+    : NonCachedServerFrontendInstance<T, _BackendType, 
+        (AUTH ? EncryptType::ENCRYPT_AND_AUTH : (ENCRYPTED ? EncryptType::ENCRYPT : EncryptType::NONE)),
+        LATE_INIT> {
+  typedef NonCachedServerFrontendInstance<T, _BackendType, 
+        (AUTH ? EncryptType::ENCRYPT_AND_AUTH : (ENCRYPTED ? EncryptType::ENCRYPT : EncryptType::NONE)),
+        LATE_INIT>
       _Base;
   using IndexType = typename _Base::IndexType;
   using BackendType = _BackendType;
