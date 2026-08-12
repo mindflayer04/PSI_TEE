@@ -205,32 +205,16 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
 }
 
 
-void createMap(const __uint128_t* input_set, size_t set_size){
+void createMap(size_t set_size){
   if(g_globalMap != nullptr){
     delete g_globalMap;
     g_globalMap = nullptr;
   }
 
-  uint64_t start, end, start_insert;
-  // int mx_size = (1<<15);
-
-  std::vector<__uint128_t> v(set_size);
-  for(int i=0;i<set_size;i++){
-    v[i] = input_set[i];
-  }
-
-  EM::NonCachedVector::Vector<__uint128_t> myvec(v.begin(),v.end()); 
-
-  ocall_measure_time(&start);
-  EM::Algorithm::KWayButterflyOShuffle(myvec.begin(),myvec.end());
-  ocall_measure_time(&end);
-  uint64_t timediff = end - start;
-  printf("[Enclave] Shuffle time %f s\n", (double)timediff * 1e-9);
-
+  uint64_t start_insert, end;
   size_t mapCapacity = set_size * 2;
-  g_globalMap = new OMap<__uint128_t,int64_t> (mapCapacity);
-
-  EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
+  uint64_t cacheBytes = 16ULL * 1024 * 1024 * 1024; // 16 GB cache inside Enclave
+  g_globalMap = new OMap<__uint128_t,int64_t> (mapCapacity, cacheBytes);
 
   ocall_measure_time(&start_insert);
   std::vector<uint64_t> vals;
@@ -240,32 +224,39 @@ void createMap(const __uint128_t* input_set, size_t set_size){
 
   int j = 0;
   uint64_t temp_time;
-  for(int i=0;i<set_size;i++){
-    __uint128_t val = reader.read();
-    g_globalMap->Insert(val,1);
-    int done = i+1;
-    if(done==vals[j]){
+  for(size_t i=0; i<set_size; i++){
+    // Generate a simple sequential 128-bit key
+    __uint128_t val = (__uint128_t)i + 1; // 1-indexed
+
+    g_globalMap->Insert(val, 1);
+
+    size_t done = i + 1;
+    if(j < vals.size() && done == vals[j]){
       ocall_measure_time(&temp_time);
       uint64_t insert_time = temp_time - start_insert;
-      printf("[Enclave] Inserted %d elements, time %f s\n", done, (double)insert_time * 1e-9);
+      printf("[Enclave] Inserted %zu elements, time %f s\n", done, (double)insert_time * 1e-9);
       j++;
     }
   }
   ocall_measure_time(&end);
-  timediff = end - start_insert;
+  uint64_t timediff = end - start_insert;
   printf("[Enclave] Insert time %f s\n", (double)timediff * 1e-9);
-  printf("[Enclave] Total Preprocessing for set size %d time %f s\n", set_size, (double)(end - start) * 1e-9);
+  printf("[Enclave] Total Preprocessing for set size %zu time %f s\n", set_size, (double)timediff * 1e-9);
 }
 
-sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
+sgx_status_t ecall_createMap(size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e10;
+  
+  // Make the backend much larger dynamically to support up to 2^30 elements
+  // 2 TB backend size (an OMAP of 1 billion elements needs ~1.5 TB of raw capacity)
+  size_t BackendSize = 2ULL << 40; 
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
+      
   try {
-    createMap(input_set, set_size);
+    createMap(set_size);
   } catch (std::exception& e) {
     printf("exception: %s\n", e.what());
   }
