@@ -18,7 +18,7 @@
 #include <cstring>
 
 #define SERVER_PORT 8080
-#define SERVER_IP "10.5.31.163"
+#define SERVER_IP "0.0.0.0"
 
 #define XXH_INLINE_ALL
 #include "xxhash.h"
