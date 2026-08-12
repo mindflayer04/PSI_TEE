@@ -78,3 +78,9 @@ applications/rustexample/BearSSL/
 
 tools/test-sgx/SGX-hardware
 mvp-pox-node/
+# repowise API keys (local)
+.repowise/.env
+.repowise
+.claude
+.mcp.json
+.repowise-workspace.yaml
