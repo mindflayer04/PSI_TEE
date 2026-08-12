@@ -228,7 +228,10 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   printf("[Enclave] Shuffle time %f s\n", (double)timediff * 1e-9);
 
   size_t mapCapacity = set_size * 2;
-  g_globalMap = new OMap<__uint128_t,int64_t> (mapCapacity);
+  // Limit in-enclave cache (bytes). Keep this modest for machines with 8GB RAM.
+  // Example: 128MB cache (adjust down if you need more headroom)
+  const uint64_t CACHE_BYTES = (uint64_t)128ULL << 20; // 128 MiB
+  g_globalMap = new OMap<__uint128_t,int64_t>(mapCapacity, CACHE_BYTES);
 
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
@@ -247,7 +250,10 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e10;
+  // Estimate backend bytes needed (conservative): ~64 bytes per element
+  const size_t PER_ELEMENT_ESTIMATE = 64; // tune this for tighter sizing
+  size_t BackendSize = std::max((size_t)(set_size * PER_ELEMENT_ESTIMATE),
+                                (size_t)(1 << 20)); // at least 1MB
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {
