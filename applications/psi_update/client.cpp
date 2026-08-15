@@ -20,8 +20,7 @@
 #define SERVER_PORT 8080
 #define SERVER_IP "127.0.0.1"
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "../../BLAKE3/c/blake3.h"
 
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
@@ -138,8 +137,16 @@ std::vector<uint8_t> convert_uint128_to_256bit(__uint128_t value) {
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 

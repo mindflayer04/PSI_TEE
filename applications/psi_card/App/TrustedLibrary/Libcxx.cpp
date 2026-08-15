@@ -26,8 +26,7 @@
 #include "external_memory/server/enclaveMemServer_untrusted.hpp"
 #endif
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "blake3.h"
 
 #define SERVER_PORT 8080
 
@@ -160,8 +159,16 @@ bool save_rsa_public_key_to_pem(const std::string& filename, const uint8_t* publ
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 void ActualMain(void) {
