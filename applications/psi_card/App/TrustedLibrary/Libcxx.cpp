@@ -343,6 +343,8 @@ void ActualMain(void) {
                 }
             }
 
+            uint32_t net_count = htonl(count);
+            send(client_socket, &net_count, sizeof(net_count), 0);
             printf("[Host] Intersection count : %u\n", count);
         } else {
             std::cerr << "[Host] Failed to read valid set size from client." << std::endl;

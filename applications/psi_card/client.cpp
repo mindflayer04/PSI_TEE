@@ -227,6 +227,15 @@ int main(){
         // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
     }
 
+    uint32_t net_count = 0;
+    int count_read = read(sock, &net_count, sizeof(net_count));
+    if (count_read == sizeof(net_count)) {
+        uint32_t count = ntohl(net_count);
+        std::cout << "Intersection count: " << count << std::endl;
+    } else {
+        std::cerr << "Failed to read intersection count from server." << std::endl;
+    }
+
     close(sock);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
