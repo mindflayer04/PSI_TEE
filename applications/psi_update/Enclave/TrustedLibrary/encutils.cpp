@@ -260,10 +260,10 @@ struct GlobalRandomKeySetter {
 
 GlobalRandomKeySetter global_random_key_setter;
 
-// #define SGXSD_AES_GCM_IV_SIZE 12
-// #define SGXSD_AES_GCM_MAC_SIZE 16
-// #define SGXSD_AES_GCM_KEY_SIZE 32
-// #define SGXSD_CURVE25519_KEY_SIZE 32
+#define SGXSD_AES_GCM_IV_SIZE 12
+#define SGXSD_AES_GCM_MAC_SIZE 16
+#define SGXSD_AES_GCM_KEY_SIZE 32
+#define SGXSD_CURVE25519_KEY_SIZE 32
 #define SGXSD_SHA256_HASH_SIZE 32
 
 
