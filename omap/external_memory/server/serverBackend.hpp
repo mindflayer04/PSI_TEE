@@ -101,6 +101,18 @@ struct MemServerBackend : ServerBackend {
                   uint8_t* in) {
     ocall_Write_Batch(batchSize, pageBytes, pageBytes * batchSize, offsets, in);
   }
+  void ReadLazy(uint64_t offset, uint64_t sz, uint8_t* to, PageSlotState& state) {
+    Read(offset, sz, to);
+    state = DONE_PAGE;
+  }
+
+  void WriteLazy(uint64_t offset, uint64_t sz, const uint8_t* from, PageSlotState& state) {
+    Write(offset, sz, from);
+    state = DONE_PAGE;
+  }
+
+  void FlushRead() {}
+  void FlushWrite() {}
 };
 extern MemServerBackend* g_DefaultBackend;
 }  // namespace Backend
