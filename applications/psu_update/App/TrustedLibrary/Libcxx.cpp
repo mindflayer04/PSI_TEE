@@ -346,6 +346,10 @@ void ActualMain(void) {
                     break;
                 }
             }
+            uint32_t union_size = union_result.size();
+            uint32_t net_union_size = htonl(union_size);
+            send(client_socket, &net_union_size, sizeof(net_union_size), 0);
+            std::cout << "[Host] Union size sent: " << union_size << std::endl;
         } else {
             std::cerr << "[Host] Failed to read valid set size from client." << std::endl;
         }

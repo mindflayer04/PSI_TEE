@@ -231,9 +231,19 @@ int main(){
         // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
     }
 
+    uint32_t net_union_size = 0;
+    int size_read = read(sock, &net_union_size, sizeof(net_union_size));
+
     auto end_online = std::chrono::high_resolution_clock::now();
     auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
     std::cout << "Online time taken: " << duration_online.count()*(1e-6) << " s" << std::endl;
+
+    if (size_read == sizeof(net_union_size)) {
+        uint32_t union_size = ntohl(net_union_size);
+        std::cout << "Union size: " << union_size << std::endl;
+    } else {
+        std::cerr << "Failed to read union size from server." << std::endl;
+    }
 
     close(sock);
     auto end = std::chrono::high_resolution_clock::now();
