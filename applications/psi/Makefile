@@ -92,6 +92,8 @@ else
 endif
 
 App_Cpp_Files := App/App.cpp $(wildcard App/TrustedLibrary/*.cpp)
+App_C_Files := $(wildcard App/TrustedLibrary/*.c)
+App_C_Objects := $(App_C_Files:.c=.o)
 App_Include_Paths := -IApp -I$(SGX_SDK)/include -I../../omap/
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
@@ -280,7 +282,11 @@ App/%.o: App/%.cpp App/Enclave_u.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
+App/%.o: App/%.c
+	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(App_Name): App/Enclave_u.o $(App_Cpp_Objects) $(App_C_Objects)
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
