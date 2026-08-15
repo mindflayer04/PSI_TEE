@@ -5,10 +5,12 @@ namespace MemoryServer {
 template <typename T, typename _BackendType = ::EM::Backend::MemServerBackend,
           bool ENCRYPTED = true, bool AUTH = true, bool LATE_INIT = true>
 struct NonCachedBatchServerFrontend
-    : NonCachedServerFrontendInstance<T, _BackendType, ENCRYPTED, AUTH,
-                                      LATE_INIT> {
-  typedef NonCachedServerFrontendInstance<T, _BackendType, ENCRYPTED, AUTH,
-                                          LATE_INIT>
+    : NonCachedServerFrontendInstance<T, _BackendType, 
+        (AUTH ? EncryptType::ENCRYPT_AND_AUTH : (ENCRYPTED ? EncryptType::ENCRYPT : EncryptType::NONE)),
+        LATE_INIT> {
+  typedef NonCachedServerFrontendInstance<T, _BackendType, 
+        (AUTH ? EncryptType::ENCRYPT_AND_AUTH : (ENCRYPTED ? EncryptType::ENCRYPT : EncryptType::NONE)),
+        LATE_INIT>
       _Base;
   using IndexType = typename _Base::IndexType;
   using BackendType = _BackendType;
@@ -74,8 +76,8 @@ struct NonCachedBatchServerFrontend
       // needs to record the index to authenticate freshness
       typename _Base::nounce_t& nounceCopy = nounces[bufferIdx];
       nounceCopy = _Base::nounce;
-      nounceCopy.identifiers.indexPart ^= i;
-      nounceCopy.identifiers.counterPart ^= auth_counter;
+      nounceCopy.index ^= i;
+      nounceCopy.counter ^= auth_counter;
     }
     if constexpr (ENCRYPTED) {
       typename T::Encrypted_t& inEnc = encs[bufferIdx];
@@ -117,8 +119,8 @@ struct NonCachedBatchServerFrontend
       typename T::Encrypted_t& inEnc = encs[bufferIdx];
       if constexpr (AUTH) {
         typename _Base::nounce_t nounceCopy = _Base::nounce;
-        nounceCopy.identifiers.indexPart ^= i;
-        nounceCopy.identifiers.counterPart ^= auth_counter;
+        nounceCopy.index ^= i;
+        nounceCopy.counter ^= auth_counter;
         inEnc.Encrypt(in, nounceCopy.bytes);
       } else {
         inEnc.Encrypt(in);

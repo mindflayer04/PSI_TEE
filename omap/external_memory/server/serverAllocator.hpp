@@ -49,7 +49,9 @@ struct LargeBlockAllocator {
 
     // Assert(bestIdx != (uint64_t)-1);
     if (bestIdx == (uint64_t)-1) {
-      throw std::runtime_error("LargeBlockAllocator: Out of memory");
+      char buf[256];
+      snprintf(buf, sizeof(buf), "LargeBlockAllocator: Out of memory. Requested: %lu, Total Size: %lu", (unsigned long)_size, (unsigned long)size);
+      throw std::runtime_error(buf);
     }
     AllocatorSlot ret = freeList[bestIdx];
     ret.size = _size;

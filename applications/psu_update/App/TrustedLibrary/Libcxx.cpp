@@ -28,8 +28,7 @@
 
 #define SERVER_PORT 8080
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "blake3.h"
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
     unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00}; 
@@ -160,8 +159,16 @@ bool save_rsa_public_key_to_pem(const std::string& filename, const uint8_t* publ
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 void ActualMain(void) {
@@ -339,6 +346,10 @@ void ActualMain(void) {
                     break;
                 }
             }
+            uint32_t union_size = union_result.size();
+            uint32_t net_union_size = htonl(union_size);
+            send(client_socket, &net_union_size, sizeof(net_union_size), 0);
+            std::cout << "[Host] Union size sent: " << union_size << std::endl;
         } else {
             std::cerr << "[Host] Failed to read valid set size from client." << std::endl;
         }

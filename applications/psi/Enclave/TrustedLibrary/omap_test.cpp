@@ -206,6 +206,7 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
 
 
 void createMap(const __uint128_t* input_set, size_t set_size){
+  printf("[Enclave] hit the createMap function\n");
   if(g_globalMap != nullptr){
     delete g_globalMap;
     g_globalMap = nullptr;
@@ -218,7 +219,7 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   for(int i=0;i<set_size;i++){
     v[i] = input_set[i];
   }
-
+  printf("[Enclave] Started Create MAP execution\n");
   EM::NonCachedVector::Vector<__uint128_t> myvec(v.begin(),v.end()); 
 
   ocall_measure_time(&start);
@@ -258,10 +259,11 @@ void createMap(const __uint128_t* input_set, size_t set_size){
 }
 
 sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
+  printf("[Enclave] Started the ecall createMap function");
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e10;
+  size_t BackendSize = 1e5;
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {

@@ -20,8 +20,7 @@
 #define SERVER_PORT 8080
 #define SERVER_IP "127.0.0.1"
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "../../BLAKE3/c/blake3.h"
 
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
@@ -138,8 +137,16 @@ std::vector<uint8_t> convert_uint128_to_256bit(__uint128_t value) {
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 
@@ -184,11 +191,8 @@ int main(){
     uint32_t net_set_size = htonl(set_size);
 
     auto start = std::chrono::high_resolution_clock::now();
-    send(sock, &net_set_size, sizeof(net_set_size), 0);
 
-    std::cout << "Sent set size: " << set_size << std::endl;
-
-    // Encrypt each query element and send to the server
+    // Encrypt each query element first
     std::vector<std::vector<uint8_t>> ciphertexts(set_size);
     auto start_enc = std::chrono::high_resolution_clock::now();
     for(uint32_t i=0;i<set_size;i++){
@@ -208,6 +212,12 @@ int main(){
     auto duration_enc = std::chrono::duration_cast<std::chrono::seconds>(end_enc - start_enc);
     std::cout << "Total encryption time for " << set_size << " elements: " << duration_enc.count() << " s" << std::endl;
 
+    // Start online phase
+    auto start_online = std::chrono::high_resolution_clock::now();
+
+    send(sock, &net_set_size, sizeof(net_set_size), 0);
+    std::cout << "Sent set size: " << set_size << std::endl;
+
     
     for (uint32_t i = 0; i < set_size; i++) {
         auto ciphertext = ciphertexts[i];
@@ -219,6 +229,20 @@ int main(){
         }
 
         // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
+    }
+
+    uint32_t net_union_size = 0;
+    int size_read = read(sock, &net_union_size, sizeof(net_union_size));
+
+    auto end_online = std::chrono::high_resolution_clock::now();
+    auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
+    std::cout << "Online time taken: " << duration_online.count()*(1e-6) << " s" << std::endl;
+
+    if (size_read == sizeof(net_union_size)) {
+        uint32_t union_size = ntohl(net_union_size);
+        std::cout << "Union size: " << union_size << std::endl;
+    } else {
+        std::cerr << "Failed to read union size from server." << std::endl;
     }
 
     close(sock);
