@@ -20,8 +20,7 @@
 #define SERVER_PORT 8080
 #define SERVER_IP "0.0.0.0"
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "../../BLAKE3/c/blake3.h"
 
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
@@ -138,8 +137,16 @@ std::vector<uint8_t> convert_uint128_to_256bit(__uint128_t value) {
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 
@@ -187,10 +194,11 @@ int main(){
     std::cout << "Public key received successfully." << std::endl;
 
 
-    std::vector<uint64_t> client_set;
-    for(uint64_t i=0;i<(1<<11);i++){
-        client_set.push_back(i+1);
-    }
+    // std::vector<uint64_t> client_set;
+    // for(uint64_t i=0;i<(1<<11);i++){
+    //     client_set.push_back(i+1);
+    // }
+    std::vector<uint64_t> client_set = {10,30,50,100};
     uint32_t set_size = client_set.size();
 
     std::vector<__uint128_t> hashed_set;
@@ -236,6 +244,28 @@ int main(){
         }
 
         // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
+    }
+
+    std::vector<uint8_t> response_bits((set_size + 7) / 8, 0);
+    int total_read = 0;
+    while (total_read < response_bits.size()) {
+        int bytes_read = read(sock, response_bits.data() + total_read, response_bits.size() - total_read);
+        if (bytes_read <= 0) {
+            std::cerr << "Failed to read response from server." << std::endl;
+            break;
+        }
+        total_read += bytes_read;
+    }
+
+    if (total_read == response_bits.size()) {
+        for (uint32_t i = 0; i < set_size; i++) {
+            bool in_intersection = (response_bits[i / 8] & (1 << (i % 8))) != 0;
+            if (in_intersection) {
+                std::cout << "Element " << client_set[i] << " is IN the intersection." << std::endl;
+            } else {
+                std::cout << "Element " << client_set[i] << " is NOT in the intersection." << std::endl;
+            }
+        }
     }
 
     close(sock);
