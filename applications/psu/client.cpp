@@ -191,11 +191,8 @@ int main(){
     uint32_t net_set_size = htonl(set_size);
 
     auto start = std::chrono::high_resolution_clock::now();
-    send(sock, &net_set_size, sizeof(net_set_size), 0);
 
-    std::cout << "Sent set size: " << set_size << std::endl;
-
-    // Encrypt each query element and send to the server
+    // Encrypt each query element first
     std::vector<std::vector<uint8_t>> ciphertexts(set_size);
     auto start_enc = std::chrono::high_resolution_clock::now();
     for(uint32_t i=0;i<set_size;i++){
@@ -215,6 +212,12 @@ int main(){
     auto duration_enc = std::chrono::duration_cast<std::chrono::seconds>(end_enc - start_enc);
     std::cout << "Total encryption time for " << set_size << " elements: " << duration_enc.count() << " s" << std::endl;
 
+    // Start online phase
+    auto start_online = std::chrono::high_resolution_clock::now();
+
+    send(sock, &net_set_size, sizeof(net_set_size), 0);
+    std::cout << "Sent set size: " << set_size << std::endl;
+
     
     for (uint32_t i = 0; i < set_size; i++) {
         auto ciphertext = ciphertexts[i];
@@ -227,6 +230,10 @@ int main(){
 
         // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
     }
+
+    auto end_online = std::chrono::high_resolution_clock::now();
+    auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
+    std::cout << "Online time taken: " << duration_online.count()*(1e-6) << " s" << std::endl;
 
     close(sock);
     auto end = std::chrono::high_resolution_clock::now();
