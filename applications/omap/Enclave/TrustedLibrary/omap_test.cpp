@@ -957,7 +957,7 @@ void testParOMapPerf(size_t mapSize = 5e6,
   omap.Init();
   ocall_measure_time(&end);
   uint64_t initTimediff = end - start;
-  for (uint32_t batchSize : {1,100, 200, 500, 1000,2000,5000}) {
+  for (uint32_t batchSize : {5000,10000,100000}) {
     printf("mapSize = %u, threadCount = %d, batchSize = %u\n", mapSize,
            threadCount, batchSize);
     printf("oram init time %f s\n", (double)initTimediff * 1e-9);

@@ -32,7 +32,7 @@
 using namespace ODSL;
 EM::Backend::MemServerBackend* EM::Backend::g_DefaultBackend = nullptr;
 
-OMap<__uint128_t, int64_t> *g_globalMap = nullptr;
+ParOMap<__uint128_t, int64_t, uint32_t> *g_globalMap = nullptr;
 
 #define ASSERT_EQ(a, b)                             \
   if ((a) != (b)) {                                 \
@@ -191,8 +191,10 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
 
   __uint128_t key = convert_256bit_to_uint128(internal_256bit_val);
 
-  int64_t value;
-  bool found_intersection = g_globalMap->Find(key, value);
+  std::vector<__uint128_t> keys = {key};
+  std::vector<int64_t> vals(1);
+  std::vector<uint8_t> res = g_globalMap->FindBatch(keys.begin(), keys.end(), vals.begin());
+  bool found_intersection = res[0];
 
   if(found_intersection){
     *found = 1;
@@ -229,7 +231,10 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   printf("[Enclave] Shuffle time %f s\n", (double)timediff * 1e-9);
 
   size_t mapCapacity = set_size * 2;
-  g_globalMap = new OMap<__uint128_t,int64_t> (mapCapacity);
+  // int threadCount = omp_get_max_threads();
+  int threadCount = 4; 
+  g_globalMap = new ParOMap<__uint128_t,int64_t, uint32_t>(mapCapacity, threadCount);
+  g_globalMap->Init();
 
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
@@ -241,9 +246,23 @@ void createMap(const __uint128_t* input_set, size_t set_size){
 
   int j = 0;
   uint64_t temp_time;
+  uint32_t batchSize = 100000;
+  std::vector<__uint128_t> batch_keys;
+  std::vector<int64_t> batch_vals;
+  batch_keys.reserve(batchSize);
+  batch_vals.reserve(batchSize);
+
   for(int i=0;i<set_size;i++){
     __uint128_t val = reader.read();
-    g_globalMap->Insert(val,1);
+    batch_keys.push_back(val);
+    batch_vals.push_back(1);
+
+    if (batch_keys.size() == batchSize || i == set_size - 1) {
+      g_globalMap->InsertBatch(batch_keys.begin(), batch_keys.end(), batch_vals.begin());
+      batch_keys.clear();
+      batch_vals.clear();
+    }
+
     int done = i+1;
     if(done==vals[j]){
       ocall_measure_time(&temp_time);
@@ -263,7 +282,7 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e5;
+  size_t BackendSize = 1e8;
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {

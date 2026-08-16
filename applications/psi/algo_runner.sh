@@ -10,7 +10,7 @@ MIN_ENCLAVE_SIZE=4096    # 4 GB
 MAX_ENCLAVE_SIZE=4096
 CORE_ID=1 # the cpu core id to run the program
 DISK_IO=1 # 0: no disk IO, 1: disk IO
-TCS_NUM=2
+TCS_NUM=4
 
 if [ $SGX_MODE = HW ]
 then
