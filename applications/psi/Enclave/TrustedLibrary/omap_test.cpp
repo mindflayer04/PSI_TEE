@@ -239,37 +239,24 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
   ocall_measure_time(&start_insert);
-  std::vector<uint64_t> vals;
-  for(int i=0;i<32;i++){
-    vals.push_back(1ULL << i);
+  uint32_t batchSize = 100000;
+  for (size_t r = 0; r < set_size / batchSize; ++r) {
+    std::vector<__uint128_t> batch_keys(batchSize);
+    std::vector<int64_t> batch_vals(batchSize, 1);
+    for (size_t i = 0; i < batchSize; ++i) {
+      batch_keys[i] = reader.read();
+    }
+    g_globalMap->InsertBatch(batch_keys.begin(), batch_keys.end(), batch_vals.begin());
   }
 
-  int j = 0;
-  uint64_t temp_time;
-  uint32_t batchSize = 100000;
-  std::vector<__uint128_t> batch_keys;
-  std::vector<int64_t> batch_vals;
-  batch_keys.reserve(batchSize);
-  batch_vals.reserve(batchSize);
-
-  for(int i=0;i<set_size;i++){
-    __uint128_t val = reader.read();
-    batch_keys.push_back(val);
-    batch_vals.push_back(1);
-
-    if (batch_keys.size() == batchSize || i == set_size - 1) {
-      g_globalMap->InsertBatch(batch_keys.begin(), batch_keys.end(), batch_vals.begin());
-      batch_keys.clear();
-      batch_vals.clear();
+  size_t remainder = set_size % batchSize;
+  if (remainder > 0) {
+    std::vector<__uint128_t> batch_keys(remainder);
+    std::vector<int64_t> batch_vals(remainder, 1);
+    for (size_t i = 0; i < remainder; ++i) {
+      batch_keys[i] = reader.read();
     }
-
-    int done = i+1;
-    if(done==vals[j]){
-      ocall_measure_time(&temp_time);
-      uint64_t insert_time = temp_time - start_insert;
-      printf("[Enclave] Inserted %d elements, time %f s\n", done, (double)insert_time * 1e-9);
-      j++;
-    }
+    g_globalMap->InsertBatch(batch_keys.begin(), batch_keys.end(), batch_vals.begin());
   }
   ocall_measure_time(&end);
   timediff = end - start_insert;
