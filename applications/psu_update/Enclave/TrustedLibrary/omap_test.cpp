@@ -22,6 +22,7 @@
 #define MB << 20
 #define RSA_2048_SIZE 256
 #define RSA_2048_HALF 128
+#define GLOBAL_BATCH_SIZE 100000
 
 #define ASSERT_TRUE(expr)                           \
   if (!expr) {                                      \
@@ -32,7 +33,7 @@
 using namespace ODSL;
 EM::Backend::MemServerBackend* EM::Backend::g_DefaultBackend = nullptr;
 
-OMap<__uint128_t, int64_t> *g_globalMap = nullptr;
+ParOMap<__uint128_t, int64_t, uint32_t> *g_globalMap = nullptr;
 
 #define ASSERT_EQ(a, b)                             \
   if ((a) != (b)) {                                 \
@@ -191,8 +192,10 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
 
   __uint128_t key = convert_256bit_to_uint128(internal_256bit_val);
 
-  int64_t value;
-  bool found_intersection = g_globalMap->Find(key, value);
+  std::vector<__uint128_t> keys = {key};
+  std::vector<int64_t> vals(1);
+  std::vector<uint8_t> res = g_globalMap->FindBatch(keys.begin(), keys.end(), vals.begin());
+  bool found_intersection = res[0];
 
   if(found_intersection){
     *found = 1;
@@ -213,8 +216,10 @@ sgx_status_t ecall_check_union(const uint8_t* p_sealed_buffer, uint32_t sealed_s
 
   __uint128_t key = convert_256bit_to_uint128(internal_256bit_val);
 
-  int64_t value;
-  bool found_intersection = g_globalMap->Find(key, value);
+  std::vector<__uint128_t> keys = {key};
+  std::vector<int64_t> vals(1);
+  std::vector<uint8_t> res = g_globalMap->FindBatch(keys.begin(), keys.end(), vals.begin());
+  bool found_intersection = res[0];
 
   if(!found_intersection){
     *found = 1;
@@ -229,6 +234,62 @@ sgx_status_t ecall_check_union(const uint8_t* p_sealed_buffer, uint32_t sealed_s
   // printf("[Enclave] Element %s in the intersection\n", found ? "is" : "is not");
 
   return status;
+}
+
+sgx_status_t ecall_check_union_batch(const uint8_t* p_sealed_buffer, uint32_t sealed_size, const uint8_t* ciphertexts, uint32_t ciphertexts_size, uint32_t num_elements, uint8_t* found, __uint128_t* value_out) {
+    if (ciphertexts_size != num_elements * RSA_2048_SIZE) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    sgx_status_t status = SGX_SUCCESS;
+    std::vector<__uint128_t> keys(num_elements);
+
+    for (uint32_t i = 0; i < num_elements; i++) {
+        uint8_t internal_256bit_val[32] = {0};
+        const uint8_t* ciphertext = ciphertexts + i * RSA_2048_SIZE;
+        status = internal_decrypt_rsa_256bit(p_sealed_buffer, ciphertext, internal_256bit_val);
+        if (status != SGX_SUCCESS) {
+            return status;
+        }
+
+        keys[i] = convert_256bit_to_uint128(internal_256bit_val);
+    }
+
+    std::vector<int64_t> vals(num_elements);
+    std::vector<uint8_t> res(num_elements);
+    
+    uint32_t batchSize = GLOBAL_BATCH_SIZE;
+    for (size_t r = 0; r < num_elements / batchSize; ++r) {
+        std::vector<uint8_t> batch_res = g_globalMap->FindBatch(
+            keys.begin() + r * batchSize, 
+            keys.begin() + (r + 1) * batchSize, 
+            vals.begin() + r * batchSize
+        );
+        std::copy(batch_res.begin(), batch_res.end(), res.begin() + r * batchSize);
+    }
+
+    size_t remainder = num_elements % batchSize;
+    if (remainder > 0) {
+        size_t offset = (num_elements / batchSize) * batchSize;
+        std::vector<uint8_t> batch_res = g_globalMap->FindBatch(
+            keys.begin() + offset, 
+            keys.end(), 
+            vals.begin() + offset
+        );
+        std::copy(batch_res.begin(), batch_res.end(), res.begin() + offset);
+    }
+
+    for (uint32_t i = 0; i < num_elements; i++) {
+        if (!res[i]) {
+            found[i] = 1;
+            value_out[i] = keys[i];
+        } else {
+            found[i] = 0;
+            value_out[i] = 0;
+        }
+    }
+
+    return SGX_SUCCESS;
 }
 
 
@@ -255,14 +316,30 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   printf("[Enclave] Shuffle time %f s\n", (double)timediff * 1e-9);
 
   size_t mapCapacity = set_size * 2;
-  g_globalMap = new OMap<__uint128_t,int64_t> (mapCapacity);
+  int threadCount = 4;
+  g_globalMap = new ParOMap<__uint128_t,int64_t, uint32_t>(mapCapacity, threadCount);
+  g_globalMap->Init();
 
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
   ocall_measure_time(&start_insert);
-  for(int i=0;i<set_size;i++){
-    __uint128_t val = reader.read();
-    g_globalMap->Insert(val,1);
+  uint32_t batchSize = GLOBAL_BATCH_SIZE;
+  for (size_t r = 0; r < set_size / batchSize; ++r) {
+    std::vector<__uint128_t> batch_keys(batchSize);
+    std::vector<int64_t> batch_vals(batchSize, 1);
+    for (size_t i = 0; i < batchSize; ++i) {
+      batch_keys[i] = reader.read();
+    }
+    g_globalMap->InsertBatch(batch_keys.begin(), batch_keys.end(), batch_vals.begin());
+  }
+  size_t remainder = set_size % batchSize;
+  if (remainder > 0) {
+    std::vector<__uint128_t> batch_keys(remainder);
+    std::vector<int64_t> batch_vals(remainder, 1);
+    for (size_t i = 0; i < remainder; ++i) {
+      batch_keys[i] = reader.read();
+    }
+    g_globalMap->InsertBatch(batch_keys.begin(), batch_keys.end(), batch_vals.begin());
   }
   ocall_measure_time(&end);
   timediff = end - start_insert;
@@ -287,11 +364,14 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
 }
 
 sgx_status_t ecall_insert_element(__uint128_t element){
-  g_globalMap->Insert(element,1);
+  std::vector<__uint128_t> keys = {element};
+  std::vector<int64_t> vals = {1};
+  g_globalMap->InsertBatch(keys.begin(), keys.end(), vals.begin());
   return SGX_SUCCESS;
 }
 
 sgx_status_t ecall_delete_element(__uint128_t element){
-  g_globalMap->Erase(element);
+  std::vector<__uint128_t> keys = {element};
+  g_globalMap->EraseBatch(keys.begin(), keys.end());
   return SGX_SUCCESS;
 }
