@@ -303,44 +303,41 @@ void ActualMain(void) {
             uint32_t set_size = ntohl(net_set_size); // Convert to native integer
             std::cout << "[Host] Client connected. Incoming set size: " << set_size << std::endl;
             uint32_t count = 0;
-            for (uint32_t i = 0; i < set_size; i++) {
-                std::vector<uint8_t> incoming_ciphertext(256, 0);
+            std::vector<uint8_t> all_ciphertexts(set_size * 256, 0);
+            size_t total_expected = set_size * 256;
+            size_t total_read = 0;
+            while (total_read < total_expected) {
+                int bytes_read = read(client_socket, all_ciphertexts.data() + total_read, total_expected - total_read);
+                if (bytes_read <= 0) break; // Client disconnected or network error
+                total_read += bytes_read;
+            }
+
+            if (total_read == total_expected) {
+                sgx_status_t intersection_status;
+                std::vector<uint8_t> found_array(set_size, 0);
                 
-                int total_read = 0;
-                while (total_read < 256) {
-                    int bytes_read = read(client_socket, incoming_ciphertext.data() + total_read, 256 - total_read);
-                    if (bytes_read <= 0) break; // Client disconnected or network error
-                    total_read += bytes_read;
-                }
+                status = ecall_check_intersection_batch(
+                    global_eid, 
+                    &intersection_status, 
+                    sealed_rsa_buffer.data(), 
+                    rsa_sealed_size, 
+                    all_ciphertexts.data(),
+                    all_ciphertexts.size(),
+                    set_size,
+                    found_array.data()
+                );
 
-                if (total_read == 256) {
-                    sgx_status_t intersection_status;
-                    uint8_t intersection_found = 0;
-                    status = ecall_check_intersection(
-                        global_eid, 
-                        &intersection_status, 
-                        sealed_rsa_buffer.data(), 
-                        rsa_sealed_size, 
-                        incoming_ciphertext.data(),
-                        &intersection_found
-                    );
-
-                    if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
-                        std::cerr << "[Host] Enclave failed to process query " << (i + 1) << "." << std::endl;
-                    } else {
-                        if(intersection_found){
-                            // std::cout << "[Host] Query " << (i + 1) << ": Element is in the intersection." << std::endl;
+                if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
+                    std::cerr << "[Host] Enclave failed to process batch." << std::endl;
+                } else {
+                    for (uint32_t i = 0; i < set_size; i++) {
+                        if(found_array[i]){
                             count++;
                         }
-                        else{
-                            // std::cout << "[Host] Query " << (i + 1) << ": Element is NOT in the intersection." << std::endl;
-                        }
                     }
-                    
-                } else {
-                    std::cerr << "[Host] Incomplete or invalid data received for query " << (i + 1) << ". Aborting batch." << std::endl;
-                    break;
                 }
+            } else {
+                std::cerr << "[Host] Incomplete or invalid data received for batch. Aborting." << std::endl;
             }
 
             uint32_t net_count = htonl(count);

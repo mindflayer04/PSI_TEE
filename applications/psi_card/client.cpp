@@ -192,7 +192,7 @@ int main(){
     auto start = std::chrono::high_resolution_clock::now();
 
     // Encrypt each query element first
-    std::vector<std::vector<uint8_t>> ciphertexts(set_size);
+    std::vector<uint8_t> all_ciphertexts(set_size * 256);
     auto start_enc = std::chrono::high_resolution_clock::now();
     for(uint32_t i=0;i<set_size;i++){
          __uint128_t current_query_value = hashed_set[i];
@@ -204,7 +204,7 @@ int main(){
             std::cerr << "Encryption failed for element " << (i + 1) << ". Aborting." << std::endl;
             return 1;
         }
-        ciphertexts[i] = std::move(ciphertext);
+        std::copy(ciphertext.begin(), ciphertext.end(), all_ciphertexts.begin() + i * 256);
     }
 
     auto end_enc = std::chrono::high_resolution_clock::now();
@@ -218,16 +218,15 @@ int main(){
     std::cout << "Sent set size: " << set_size << std::endl;
 
     
-    for (uint32_t i = 0; i < set_size; i++) {
-        auto ciphertext = ciphertexts[i];
-
-        int sent = send(sock, ciphertext.data(), ciphertext.size(), 0);
-        if (sent != 256) {
-            std::cerr << "Failed to send complete ciphertext for element " << (i + 1) << std::endl;
-            break;
+    size_t total_to_send = set_size * 256;
+    size_t total_sent = 0;
+    while(total_sent < total_to_send) {
+        int sent = send(sock, all_ciphertexts.data() + total_sent, total_to_send - total_sent, 0);
+        if(sent <= 0) {
+             std::cerr << "Failed to send batch ciphertexts." << std::endl;
+             break;
         }
-
-        // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
+        total_sent += sent;
     }
 
     uint32_t net_count = 0;
