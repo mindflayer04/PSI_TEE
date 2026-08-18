@@ -22,6 +22,7 @@
 #define MB << 20
 #define RSA_2048_SIZE 256
 #define RSA_2048_HALF 128
+#define GLOBAL_BATCH_SIZE 100000
 
 #define ASSERT_TRUE(expr)                           \
   if (!expr) {                                      \
@@ -206,6 +207,57 @@ sgx_status_t ecall_check_intersection(const uint8_t* p_sealed_buffer, uint32_t s
   return status;
 }
 
+sgx_status_t ecall_check_intersection_batch(const uint8_t* p_sealed_buffer, uint32_t sealed_size, const uint8_t* ciphertexts, uint32_t ciphertexts_size, uint32_t num_elements, uint8_t* found) {
+    if (ciphertexts_size != num_elements * RSA_2048_SIZE) {
+        return SGX_ERROR_INVALID_PARAMETER;
+    }
+
+    sgx_status_t status = SGX_SUCCESS;
+    std::vector<__uint128_t> keys(num_elements);
+
+    for (uint32_t i = 0; i < num_elements; i++) {
+        uint8_t internal_256bit_val[32] = {0};
+        const uint8_t* ciphertext = ciphertexts + i * RSA_2048_SIZE;
+        status = internal_decrypt_rsa_256bit(p_sealed_buffer, ciphertext, internal_256bit_val);
+        if (status != SGX_SUCCESS) {
+            return status;
+        }
+
+        keys[i] = convert_256bit_to_uint128(internal_256bit_val);
+    }
+
+    std::vector<int64_t> vals(num_elements);
+    std::vector<uint8_t> res(num_elements);
+    
+    uint32_t batchSize = GLOBAL_BATCH_SIZE;
+    for (size_t r = 0; r < num_elements / batchSize; ++r) {
+        std::vector<uint8_t> batch_res = g_globalMap->FindBatch(
+            keys.begin() + r * batchSize, 
+            keys.begin() + (r + 1) * batchSize, 
+            vals.begin() + r * batchSize
+        );
+        std::copy(batch_res.begin(), batch_res.end(), res.begin() + r * batchSize);
+    }
+
+    size_t remainder = num_elements % batchSize;
+    if (remainder > 0) {
+        size_t offset = (num_elements / batchSize) * batchSize;
+        std::vector<uint8_t> batch_res = g_globalMap->FindBatch(
+            keys.begin() + offset, 
+            keys.end(), 
+            vals.begin() + offset
+        );
+        std::copy(batch_res.begin(), batch_res.end(), res.begin() + offset);
+    }
+
+    for (uint32_t i = 0; i < num_elements; i++) {
+        found[i] = res[i] ? 1 : 0;
+    }
+
+    return SGX_SUCCESS;
+}
+
+
 
 void createMap(const __uint128_t* input_set, size_t set_size){
   printf("[Enclave] hit the createMap function\n");
@@ -239,7 +291,7 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
   ocall_measure_time(&start_insert);
-  uint32_t batchSize = 100000;
+  uint32_t batchSize = GLOBAL_BATCH_SIZE;
   for (size_t r = 0; r < set_size / batchSize; ++r) {
     std::vector<__uint128_t> batch_keys(batchSize);
     std::vector<int64_t> batch_vals(batchSize, 1);
