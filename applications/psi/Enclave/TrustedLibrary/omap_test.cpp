@@ -22,7 +22,7 @@
 #define MB << 20
 #define RSA_2048_SIZE 256
 #define RSA_2048_HALF 128
-#define GLOBAL_BATCH_SIZE 100000
+#define GLOBAL_BATCH_SIZE 500000
 
 #define ASSERT_TRUE(expr)                           \
   if (!expr) {                                      \
@@ -284,7 +284,7 @@ void createMap(const __uint128_t* input_set, size_t set_size){
 
   size_t mapCapacity = set_size * 2;
   // int threadCount = omp_get_max_threads();
-  int threadCount = 4; 
+  int threadCount = 32; 
   g_globalMap = new ParOMap<__uint128_t,int64_t, uint32_t>(mapCapacity, threadCount);
   g_globalMap->Init();
 
@@ -321,7 +321,7 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e8;
+  size_t BackendSize = 1e10;
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {

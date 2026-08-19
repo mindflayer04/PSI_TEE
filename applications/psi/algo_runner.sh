@@ -6,11 +6,11 @@ cp ../../omap/common/encutils.cpp ./Enclave/TrustedLibrary/encutils.cpp
 SGX_MODE=HW # HW or SIM
 
 # Algorithms:
-MIN_ENCLAVE_SIZE=4096    # 4 GB
-MAX_ENCLAVE_SIZE=4096
+MIN_ENCLAVE_SIZE=65536   # 64 GB
+MAX_ENCLAVE_SIZE=65536
 CORE_ID=1 # the cpu core id to run the program
 DISK_IO=1 # 0: no disk IO, 1: disk IO
-TCS_NUM=4
+TCS_NUM=32
 
 if [ $SGX_MODE = HW ]
 then
