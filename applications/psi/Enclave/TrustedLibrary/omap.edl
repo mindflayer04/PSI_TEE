@@ -25,6 +25,15 @@ enclave {
       [in,size=256] const uint8_t* ciphertext,
       [out, size=1] uint8_t* found
     );
+
+    public sgx_status_t ecall_check_intersection_batch(
+      [in,size=sealed_size] const uint8_t* p_sealed_buffer,
+      uint32_t sealed_size,
+      [in, count=ciphertexts_size] const uint8_t* ciphertexts,
+      uint32_t ciphertexts_size,
+      uint32_t num_elements,
+      [out, count=num_elements] uint8_t* found
+    );
   };
 
   untrusted {

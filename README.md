@@ -1,173 +1,135 @@
-# Oblivious Map
-This repository hosts an implementation of parallel oblivious maps designed for external memory efficiency. The map supports oblivious insertion, erasure, and lookup operations for key-value pairs. The term "oblivious" denotes that both the memory access pattern and disk swaps appear to be independent of the secret data, thus ensuring privacy beyond mere encryption. Additionally, the repository includes examples of oblivious map applications in SGX and provides bindings for Rust and Golang.
+# Faster Than Ever PSI (Private Set Intersection) with Intel SGX
 
-## Prerequisites
-Install Cmake, Ninja and Intel SGX sdk, or use the cppbuilder docker image.
+## Abstract
+This repository contains the reference implementation for our **Unbalanced Private Set Intersection (PSI)** protocol and its variants. Built on Intel SGX and optimized with a parallel Oblivious Map (OMap) data structure, this repository also includes the complete implementation of our **Unbalanced Private Set Union (PSU)** protocol and its different variants.
 
-## How to build the builder docker image
+> [!WARNING]
+> **Hardware & Environment Warning**
+> 
+> To ensure maximum compatibility across reviewer environments and standard hardware, the build scripts in this artifact default to **SGX Simulation Mode (`SGX_MODE=SIM`)**. 
+> Furthermore, to prevent Out-Of-Memory (OOM) crashes on machines with limited RAM, the dataset sizes inside the client and server benchmarks have been strictly fixed. 
+
+---
+
+## Protocol Overview
+
+This repository implements six core protocols utilizing a preprocessing based offline-online model combined with Trusted Execution Environments (e.g., Intel SGX):
+- **PSI (Private Set Intersection)**: Computes the intersection between the client and the server datasets.
+- **PSI-CARD (Private Set Intersection Cardinality)**: Computes only the cardinality (size) of the intersection and the client receives it only.
+- **UPSI (Updatable Private Set Intersection)**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
+- **PSU (Private Set Union)**: It computes the union of both datasets securely and the server receives it.
+- **PSU-CARD**: Computes the size of the set union and the server receives it only.
+- **UPSU (Updatable Private Set Union)**: An updatable variant of unbalanced PSU protocol.
+
+These protocols rely heavily on two critical cryptographic dependencies:
+- **OMap (Oblivious Map)**: Prevents access pattern leakage by utilizing the EnigMap data structure. Repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
+- **O-Shuffle (Oblivious Shuffling)**: Hides the relationship between input and output positions via the FlexWay O-Shuffle Algorithm. Repository: [odslib/oblsort](https://github.com/odslib/oblsort).
+
+For in-depth details on each protocol, refer to the READMEs located inside the respective application folders.
+
+## Directory Structure
+
+Explore the dedicated READMEs for each sub-application for deeper technical insights:
+
+```text
+.
+├── BLAKE3/              # Fast cryptographic hash function source code
+├── applications/        # SGX Enclave Applications (PSI, PSU, Benchmarks)
+│   ├── benchmark/       # Primary application for the AE workflow ([README](applications/benchmark/README.md))
+│   ├── omap/            # Core oMap functionality testing ([README](applications/omap/README.md))
+│   ├── psi/             # Standard Private Set Intersection ([README](applications/psi/README.md))
+│   ├── psi_card/        # PSI Cardinality ([README](applications/psi_card/README.md))
+│   ├── psi_update/      # PSI Update ([README](applications/psi_update/README.md))
+│   ├── psu/             # Private Set Union ([README](applications/psu/README.md))
+│   ├── psu_card/        # PSU Cardinality ([README](applications/psu_card/README.md))
+│   └── psu_update/      # PSU Update ([README](applications/psu_update/README.md))
+├── cmake/               # CMake configuration modules
+├── omap/                # Core C++ library for Oblivious Data Structures
+├── tests/               # Unit testing modules
+└── tools/
+    └── docker/          # Reproducible Docker environment build files
+```
+
+---
+
+## NDSS Artifact Evaluation Workflow (Split-Terminal)
+
+To evaluate the artifact, we employ a split-terminal strategy. Reviewers will use one terminal to act as the SGX Host (Server), and a second terminal to act as the querying Client.
+
+### Step 1: Building and Running the Docker Container
+First, build and enter the isolated Docker environment which contains all the necessary dependencies (CMake, Ninja, Intel SGX SDK).
+
 ```bash
+# Build the Docker image
 docker build -t cppbuilder:latest ./tools/docker/cppbuilder
+
+# Run and enter the container interactively
+docker run -it --rm --name psi_eval -p 8080:8080 -v $PWD:/builder -u $(id -u) cppbuilder
 ```
 
-## How to enter the docker environment to run unit tests
-```bash
-docker run -it --rm -v $PWD:/builder -u $(id -u) cppbuilder
-```
-
-## How to enter the docker environment to run algorithms in enclave
-```bash
-docker run -v /tmp/omapbackend:/ssdmount --privileged -it --rm -v $PWD:/builder -p 8080:8080 cppbuilder
-```
-
-## How to run the unit tests
-```bash
-rm -rf build
-cmake -B build -G Ninja
-ninja -C build
-ninja -C build test
-```
-
-## How to run the unit tests in release mode
+### Step 2: Launching the SGX Server (Terminal 1)
+Inside the container, navigate to the benchmark application directory and use the automated build script to compile the enclave and start the server host.
 
 ```bash
-rm -rf build # Needed after the CC/CXX export or after changing the CMAKE_BUILD_TYPE
-export CC=/usr/bin/gcc
-export CXX=/usr/bin/g++
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-ninja -C build
+cd applications/benchmark/
+./algo_runner.sh 1
 ```
 
-## Build the omap example enclave (hardware mode)
+Once executed, the server will successfully build the enclave and present an **interactive menu**. 
+Enter the number corresponding to the protocol you wish to benchmark (e.g., `1` for standard PSI). The server will then generate the RSA keys, initialize the Oblivious Map in the enclave, and state that it is listening on port 8080.
+
+### Step 3: Compiling and Running the Client (Terminal 2)
+Leave Terminal 1 running. Open a *new* terminal on your host machine, and enter the active Docker container.
+
 ```bash
-source /startsgxenv.sh
-cd applications/omap
-make
+# Enter the running container
+docker exec -it psi_eval /bin/bash
+
+# Navigate to the benchmark application
+cd applications/benchmark/
+
+# Compile the client executable
+make client
+
+# Run the client
+./client
 ```
 
-## Build the omap example enclave (simulation mode)
-```bash
-source /startsgxenv.sh
-cd applications/omap
-make SGX_MODE=SIM
-```
+The client will present a matching interactive menu. **Select the identical protocol number** that you chose in Step 2. The client will connect to the server, exchange ciphertexts, and complete the protocol execution.
 
-## Run a sample script to test runtime of omap algorithms
-```bash
-cd applications/omap
-./algo_runner.sh
-```
+### Step 4: Interpreting the Metrics
+Once the protocol finishes, the client will terminate and print the final metrics directly to your console (Terminal 2).
 
-## Folder structure high-level details
+Reviewers should look for the following exact phrases in the standard output to verify the performance claims presented in the paper:
+- **`Online time taken: [X.X] s`**
+- **`Total time taken: [X.X] s`**
+- **`Total communication size: [X.X] KB`**
 
-`omap` - C++ oblivious map library code
+These metrics correspond directly to the execution time and total communication bounds evaluated in our experimental results.
 
-`tests` - C++ tests modules
+---
 
-`applications` - Enclaves example of omap
+## Advanced Configuration
 
-`tools` - tools for generating graphs or test sets
+If you wish to run the artifact on a high-performance machine or explore larger dataset boundaries, you can modify the core execution variables located inside the `algo_runner.sh` script for each application.
 
-`tools/docker` - dockerfiles used for reproducible builds
+### Changing SGX Modes (HW vs SIM)
+By default, the artifact runs in Simulation Mode (`SIM`). If you have compatible Intel hardware and the SGX drivers installed, you can switch to Hardware Mode:
+1. Open `algo_runner.sh`.
+2. Change `SGX_MODE=SIM` to `SGX_MODE=HW`.
 
+### Disk I/O Settings
+The `DISK_IO` parameter dictates whether the Oblivious Map aggressively swaps memory to the external disk to circumvent enclave memory limits.
+- Set `DISK_IO=0` in `algo_runner.sh` to keep all data securely inside the enclave RAM. (Provides faster performance but strictly limits maximum dataset sizes before causing OOM).
+- Set `DISK_IO=1` (Default) to enable external disk swapping for large datasets.
 
-### omap folder structure
+### Enclave RAM Size (Heap Size)
+The maximum amount of RAM the enclave is allowed to utilize is controlled dynamically by the `algo_runner.sh` script using the `<HeapMaxSize>` tag. 
+To increase the Enclave RAM allocation for larger datasets, modify the `MIN_ENCLAVE_SIZE` and `MAX_ENCLAVE_SIZE` bounds in `algo_runner.sh`.
 
-`odsl` - core library code of oblivious data structures
+### Server Backend Size (Handling Bigger Elements)
+The current configuration optimizes memory footprints based on the standard protocol requirements. If you wish to run the application with **bigger elements** (i.e., larger cryptographic payloads or keys), you must correspondingly increase the server's backend storage size. To do this, modify the `size_t BackendSize` variable located in the `Enclave/TrustedLibrary/omap_test.cpp` file of the respective application directory.
 
-`algorithm` - algorithmic building blocks for oblivious data structures
-
-`common` - common C++ utilies, CPU abstractions, cryptography abstractions and tracing code
-
-`external_memory` - external memory vector abstraction
-
-`external_memory/server` - server abstraction for different external memory scenarios (sgx, file system, ram)
-
-`interface` - foreign language interface
-
-## Performance Benchmark
-
-The benchmark below is conducted in SGX prerelease mode with an Intel(R) Xeon(R) Platinum 8352S processor (48M Cache, 2.20 GHz). We limit the enclave size to be 64 GB, and swap the rest of the data to an SSD.
-
-### Sequential Access
-
-First, we test the average latency of sequential access. In the test, each access is launched right after the previous access returns the result. A pipelining optimization is enabled to utilize multiple cores.
-
-
-<img src="applications/omap/perf_tests/pipeline/Latency1.jpg" alt="Latency of sequential access" width="400"/>
-
-<img src="applications/omap/perf_tests/pipeline/Init_Time.jpg" alt="Initialization time" width="400"/>
-
-### Batch Access
-
-Then, we test the average latency for a batch of accesses. The accesses are obliviously load-balanced to multiple sub omaps and processed in parallel. When data fits in the enclave, batched access is faster than sequential access due to more parallelism; otherwise, the performance is close since both are limited by the I/O bandwidth.
-
-<img src="applications/omap/perf_tests/pardisk/Latency1000.jpg" alt="Latency of batch access of size 1000" width="400"/>
-
-<img src="applications/omap/perf_tests/pardisk/Latency100000.jpg" alt="Latency of batch access of size 100000" width="400"/>
-
-<img src="applications/omap/perf_tests/pardisk/Init_Time.jpg" alt="Initialization time of parallel oMap" width="400"/>
-
-## Architecture Overview
-
-Below, we give an overview of our oblivious data structure in a top-down order.
-
-### Parallel Oblivious Map for batch queries
-
-When queries are received in batches, we implement an oblivious load balancing mechanism to distribute them across multiple shards of the oblivious map, enabling parallel query processing. Drawing inspiration from Snoopy (referenced at https://eprint.iacr.org/2021/1280), we have refined and optimized their load balancing algorithm. The corresponding implementation is available at `odsl/par_omap.hpp`.
-
-### Oblivious Map
-
-Our oblivious map employs blocked cuckoo hashing with a stash to map long keys from a sparse space to memory addresses in a denser space. Using two hash tables, T1 and T2, an element x can be located in either location h1(x) of T1 or h2(x) of T2, utilizing hash functions h1 and h2 respectively. Each location can store multiple elements, increasing associativity and the load factor of the cuckoo hash tables. When both locations are full, the element may be stored in a stash. Cuckoo hashing offers O(1) worst-time complexity for look-up and deletion, making it ideal for oblivious data structures that conceal access counts during probing.
-
-Insertion involves repeatedly evicting existing elements from the table when collisions occur. A naive approach to support oblivious insertion pads the number of evictions to a maximum threshold. Our map reduces the number of accesses by deamortizing evictions using the stash.
-
-For keys and values under 32 bytes, it is efficient to store them directly in the cuckoo hash table (`odsl/omap_short_kv.hpp`). Longer keys and values are processed by cuckoo hashing to a position map and stored in a separate non-recursive ORAM (`odsl/omap.hpp`). This optimization reduces storage and computational overhead.
-
-### Recursive ORAM
-
-The hash table in the oblivious map is implemented with a recursive ORAM (`odsl/recursive_oram.hpp`), offering an interface akin to an array, enabling random access at any location. The construction of this recursive ORAM draws from various ORAM studies, including binary-tree ORAM, Path ORAM, and Circuit ORAM. It comprises a non-recursive ORAM storing the data and a position map to track data locations.
-
-Specifically, after each access, the accessed data entry is assigned to a random new position in the non-recursive ORAM, with the position map updated accordingly. To conceal access patterns, the position map is implemented with a smaller recursive ORAM. At the base recursion level, the position map uses a naive linear ORAM, where each access is conducted via linear scan.
-
-### Non-Recursive ORAM
-
-We adopt Circuit ORAM (https://eprint.iacr.org/2014/672) to instantiate the non-recursive ORAM, which offers the best concrete efficiency in our tests (`odsl/circuit_oram.hpp`). The ORAM consists of a binary tree of buckets. Each entry in the ORAM is assigned a random leaf node, and may reside in any bucket on the path from the root to its assigned leaf. The assigned leaf ID is tracked with a recursive position map, as mentioned in the previous section. During an access, the entry is obliviously extracted from the path and assigned a new leaf node to write back to. Directly moving the element to the assigned leaf would leak the access pattern, so instead, all entries are initially moved to the root bucket and then continuously evicted towards their assigned leaves following a deterministic access pattern. Circuit ORAM introduces an efficient oblivious eviction algorithm that operates in O(log N) time per access, where N is the size of the ORAM.
-
-### External-memory Efficient Binary Tree
-
-The binary tree structure in Circuit ORAM is implemented in `odsl/heap_tree.hpp`. Since the size of the data may exceed the available secure memory, we adopted an external-memory efficient layout as described in EnigMap (https://eprint.iacr.org/2022/1083). The top k levels of the tree reside in secure memory, while the remaining nodes are packed into pages in external memory. Each page is designed to contain a small subtree, which enhances locality when accessing nodes on a path.
-
-As an additional optimization over EnigMap, we utilize the deterministic eviction pattern of Circuit ORAM to further enhance locality by packing nodes on successive eviction paths. Because the tree structure is fixed, we rely on an indexer to reference the nodes, removing the overhead associated with pointers.
-
-### Direct-map Cache and LRU Cache
-
-To utilize the locality of our binary tree structure, the pages in external memory are managed with a cache. We implemented both a direct-mapped cache (`common/dmcache.hpp`) and an LRU cache (`common/lrucache.hpp`). By default, the direct-mapped cache is used due to its significantly smaller overhead.
-
-### Storage Frontend for Encryption/Decryption
-
-Assuming that the data is stored partly in secure memory and partly in insecure external memory, we need to encrypt the data when swapping it to external memory and decrypt it when swapping it back. The storage frontend (`external_memory/serverFrontend.hpp`) handles this encryption and decryption procedure. We use the AES-GCM scheme to provide both secrecy and authenticity. To fully utilize hardware acceleration, we recommend a page size of at least 1 kB. When accessing 4 kB pages, our custom page swap handler is about 16 times faster than using the default dynamic page swap feature in Intel SGX v2.
-
-To conserve secure memory space, we do not check the freshness of the pages at the storage frontend. Instead, we use a version number tree to resolve freshness. Each node in the binary tree stores the number of times its children have been accessed, which is sufficient for finding mismatches and preventing replay attacks.
-
-### Storage Backend
-
-The storage backend (`external_memory/serverBackend.hpp`) allocates memory for the frontends and proxies the page swaps to the untrusted servers.
-
-### Untrusted Servers
-
-The untrusted servers (`external_memory/server/***_untrusted.hpp`) manage data in the external memory. For applications running in Intel SGX, an Outside Call (OCall) must be made from the storage backend to trigger the methods in the untrusted server.
-
-### Other Utilities
-
-#### Oblivious Sorting, Compaction, and Merge-split
-
-The load balancer of parallel ORAM utilizes various oblivious algorithms such as sorting, compaction, and merge-split. These algorithms are implemented in `algorithm/` folder.
-
-#### Oblivious Move and Swap
-`common/mov_intrinsics.hpp` implements oblivious conditional moves and swaps with SIMD acceleration.
-
-#### Cryptographic Functions
-The encryption/decryption and secure hash functions are defined in `common/encutils.hpp` and `common/encutils.cpp`.
-
-## Foreign Language Interface
-We provide some wrapper classes to bind foreign languages in `interface`. In the `application` folder, we provide examples of Golang and Rust binding.
+> [!TIP]
+> **Backend Size Logic:**
+> When calculating the required backend storage for custom element sizes, you can take a **conservative approach of 64 bytes per element**. Therefore, if you are computing an intersection for $N$ custom elements, you should configure the `BackendSize` variable to accommodate at least $N \times 64$ bytes of storage. This buffer safely accounts for metadata and cipher overhead.

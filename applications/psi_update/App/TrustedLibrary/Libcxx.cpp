@@ -10,6 +10,7 @@
 #include <openssl/core_names.h>
 #include <openssl/err.h>
 #include <algorithm>
+#include <chrono>
 
 // Network headers
 #include <sys/socket.h>
@@ -26,8 +27,7 @@
 #include "external_memory/server/enclaveMemServer_untrusted.hpp"
 #endif
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "blake3.h"
 
 #define SERVER_PORT 8080
 
@@ -160,8 +160,16 @@ bool save_rsa_public_key_to_pem(const std::string& filename, const uint8_t* publ
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 void ActualMain(void) {
@@ -225,6 +233,26 @@ void ActualMain(void) {
     else{
         std::cerr << "[Host] Failed to create map in enclave. Error: " << std::hex << ret << " " << std::hex << map_status << std::endl;
     }
+
+    std::vector<uint64_t> new_elements = {60, 70, 80, 90, 100};
+    std::cout << "[Host] Inserting new elements into the OMAP..." << std::endl;
+    auto insert_start = std::chrono::high_resolution_clock::now();
+
+    for (const auto& val : new_elements) {
+        __uint128_t hashed_val = hash(std::to_string(val));
+        sgx_status_t insert_status;
+        status = ecall_insert_element(global_eid, &insert_status, hashed_val);
+        if (status != SGX_SUCCESS || insert_status != SGX_SUCCESS) {
+            std::cerr << "[Host] Failed to insert element " << val << " into the OMAP." << std::endl;
+        } else {
+            std::cout << "[Host] Element " << val << " inserted successfully." << std::endl;
+        }
+    }
+
+    auto insert_end = std::chrono::high_resolution_clock::now();
+    auto insert_duration = std::chrono::duration_cast<std::chrono::microseconds>(insert_end - insert_start);
+    std::cout << "[Host] Time taken to insert " << new_elements.size() << " elements: " 
+              << insert_duration.count() * 1e-6 << " seconds." << std::endl;
 
     // Encryption-Decryption Sanity Check
     // std::vector<uint8_t> plaintext(32, 0);
@@ -296,42 +324,52 @@ void ActualMain(void) {
             uint32_t set_size = ntohl(net_set_size); // Convert to native integer
             std::cout << "[Host] Client connected. Incoming set size: " << set_size << std::endl;
 
-            for (uint32_t i = 0; i < set_size; i++) {
-                std::vector<uint8_t> incoming_ciphertext(256, 0);
+            std::vector<uint8_t> response_bits((set_size + 7) / 8, 0);
+
+            std::vector<uint8_t> all_ciphertexts(set_size * 256, 0);
+            size_t total_expected = set_size * 256;
+            size_t total_read = 0;
+            while (total_read < total_expected) {
+                int bytes_read = read(client_socket, all_ciphertexts.data() + total_read, total_expected - total_read);
+                if (bytes_read <= 0) break; // Client disconnected or network error
+                total_read += bytes_read;
+            }
+
+            if (total_read == total_expected) {
+                sgx_status_t intersection_status;
+                std::vector<uint8_t> found_array(set_size, 0);
                 
-                int total_read = 0;
-                while (total_read < 256) {
-                    int bytes_read = read(client_socket, incoming_ciphertext.data() + total_read, 256 - total_read);
-                    if (bytes_read <= 0) break; // Client disconnected or network error
-                    total_read += bytes_read;
-                }
+                status = ecall_check_intersection_batch(
+                    global_eid, 
+                    &intersection_status, 
+                    sealed_rsa_buffer.data(), 
+                    rsa_sealed_size, 
+                    all_ciphertexts.data(),
+                    all_ciphertexts.size(),
+                    set_size,
+                    found_array.data()
+                );
 
-                if (total_read == 256) {
-                    sgx_status_t intersection_status;
-                    uint8_t intersection_found = 0;
-                    status = ecall_check_intersection(
-                        global_eid, 
-                        &intersection_status, 
-                        sealed_rsa_buffer.data(), 
-                        rsa_sealed_size, 
-                        incoming_ciphertext.data(),
-                        &intersection_found
-                    );
-
-                    if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
-                        std::cerr << "[Host] Enclave failed to process query " << (i + 1) << "." << std::endl;
-                    } else {
-                        if(intersection_found){
+                if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
+                    std::cerr << "[Host] Enclave failed to process batch." << std::endl;
+                } else {
+                    for (uint32_t i = 0; i < set_size; i++) {
+                        if(found_array[i]){
                             std::cout << "[Host] Query " << (i + 1) << ": Element is in the intersection." << std::endl;
+                            response_bits[i / 8] |= (1 << (i % 8));
                         }
                         else{
                             std::cout << "[Host] Query " << (i + 1) << ": Element is NOT in the intersection." << std::endl;
                         }
                     }
-                } else {
-                    std::cerr << "[Host] Incomplete or invalid data received for query " << (i + 1) << ". Aborting batch." << std::endl;
-                    break;
                 }
+            } else {
+                std::cerr << "[Host] Incomplete or invalid data received for batch. Aborting." << std::endl;
+            }
+
+            int sent_bytes = send(client_socket, response_bits.data(), response_bits.size(), 0);
+            if (sent_bytes != response_bits.size()) {
+                std::cerr << "[Host] Failed to send complete response to client." << std::endl;
             }
         } else {
             std::cerr << "[Host] Failed to read valid set size from client." << std::endl;

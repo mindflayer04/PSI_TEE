@@ -28,8 +28,7 @@
 
 #define SERVER_PORT 8080
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "blake3.h"
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
     unsigned char e_val[4] = {0x01, 0x00, 0x01, 0x00}; 
@@ -160,8 +159,16 @@ bool save_rsa_public_key_to_pem(const std::string& filename, const uint8_t* publ
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 void ActualMain(void) {
@@ -298,47 +305,43 @@ void ActualMain(void) {
             uint32_t set_size = ntohl(net_set_size); // Convert to native integer
             std::cout << "[Host] Client connected. Incoming set size: " << set_size << std::endl;
 
-            for (uint32_t i = 0; i < set_size; i++) {
-                std::vector<uint8_t> incoming_ciphertext(256, 0);
+            std::vector<uint8_t> all_ciphertexts(set_size * 256, 0);
+            size_t total_expected = set_size * 256;
+            size_t total_read = 0;
+            while (total_read < total_expected) {
+                int bytes_read = read(client_socket, all_ciphertexts.data() + total_read, total_expected - total_read);
+                if (bytes_read <= 0) break; // Client disconnected or network error
+                total_read += bytes_read;
+            }
+
+            if (total_read == total_expected) {
+                sgx_status_t intersection_status;
+                std::vector<uint8_t> found_array(set_size, 0);
+                std::vector<__uint128_t> value_out_array(set_size, 0);
                 
-                int total_read = 0;
-                while (total_read < 256) {
-                    int bytes_read = read(client_socket, incoming_ciphertext.data() + total_read, 256 - total_read);
-                    if (bytes_read <= 0) break; // Client disconnected or network error
-                    total_read += bytes_read;
-                }
+                status = ecall_check_union_batch(
+                    global_eid, 
+                    &intersection_status, 
+                    sealed_rsa_buffer.data(), 
+                    rsa_sealed_size, 
+                    all_ciphertexts.data(),
+                    all_ciphertexts.size(),
+                    set_size,
+                    found_array.data(),
+                    value_out_array.data()
+                );
 
-                if (total_read == 256) {
-                    sgx_status_t intersection_status;
-                    uint8_t add_union = 0;
-                    __uint128_t value;
-                    status = ecall_check_union(
-                        global_eid, 
-                        &intersection_status, 
-                        sealed_rsa_buffer.data(), 
-                        rsa_sealed_size, 
-                        incoming_ciphertext.data(),
-                        &add_union,
-                        &value
-                    );
-
-                    if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
-                        std::cerr << "[Host] Enclave failed to process query " << (i + 1) << "." << std::endl;
-                    } else {
-                        if(add_union){
-                            // std::cout << "[Host] Value " << value << " is added to the union." << std::endl;
-                            // union_result.push_back(value);
-                            // hashed_set.push_back(value);
+                if (status != SGX_SUCCESS || intersection_status != SGX_SUCCESS) {
+                    std::cerr << "[Host] Enclave failed to process batch." << std::endl;
+                } else {
+                    for (uint32_t i = 0; i < set_size; i++) {
+                        if(found_array[i]){
                             union_size++;
                         }
-                        else{
-                            // std::cout << "[Host] Query " << (i + 1) << ": Element is NOT in the intersection." << std::endl;
-                        }
                     }
-                } else {
-                    std::cerr << "[Host] Incomplete or invalid data received for query " << (i + 1) << ". Aborting batch." << std::endl;
-                    break;
                 }
+            } else {
+                std::cerr << "[Host] Incomplete or invalid data received for batch. Aborting." << std::endl;
             }
         } else {
             std::cerr << "[Host] Failed to read valid set size from client." << std::endl;

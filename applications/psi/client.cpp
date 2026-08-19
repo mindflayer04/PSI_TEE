@@ -18,10 +18,9 @@
 #include <cstring>
 
 #define SERVER_PORT 8080
-#define SERVER_IP "10.5.31.163"
+#define SERVER_IP "0.0.0.0"
 
-#define XXH_INLINE_ALL
-#include "xxhash.h"
+#include "../../BLAKE3/c/blake3.h"
 
 
 std::vector<uint8_t> encrypt_256bit(const uint8_t* public_modulus, const uint8_t* secret_data_32bytes) {
@@ -138,8 +137,16 @@ std::vector<uint8_t> convert_uint128_to_256bit(__uint128_t value) {
 }
 
 __uint128_t hash(const std::string& str) {
-    XXH128_hash_t hash = XXH3_128bits(str.data(), str.size());
-    return ((__uint128_t)hash.high64 << 64) | hash.low64;
+    blake3_hasher hasher;
+    blake3_hasher_init(&hasher);
+    blake3_hasher_update(&hasher, str.data(), str.size());
+    uint8_t output[16];
+    blake3_hasher_finalize(&hasher, output, 16);
+
+    uint64_t low64, high64;
+    std::memcpy(&low64, output, 8);
+    std::memcpy(&high64, output + 8, 8);
+    return ((__uint128_t)high64 << 64) | low64;
 }
 
 
@@ -191,6 +198,7 @@ int main(){
     for(uint64_t i=0;i<(1<<11);i++){
         client_set.push_back(i+1);
     }
+    // std::vector<uint64_t> client_set = {10,30,50,100};
     uint32_t set_size = client_set.size();
 
     std::vector<__uint128_t> hashed_set;
@@ -201,12 +209,9 @@ int main(){
     uint32_t net_set_size = htonl(set_size);
 
     auto start = std::chrono::high_resolution_clock::now();
-    send(sock, &net_set_size, sizeof(net_set_size), 0);
 
-    std::cout << "Sent set size: " << set_size << std::endl;
-
-    // Encrypt each query element and send to the server
-    std::vector<std::vector<uint8_t>> ciphertexts(set_size);
+    // Encrypt each query element first
+    std::vector<uint8_t> all_ciphertexts(set_size * 256);
     auto start_enc = std::chrono::high_resolution_clock::now();
     for(uint32_t i=0;i<set_size;i++){
          __uint128_t current_query_value = hashed_set[i];
@@ -218,24 +223,54 @@ int main(){
             std::cerr << "Encryption failed for element " << (i + 1) << ". Aborting." << std::endl;
             return 1;
         }
-        ciphertexts[i] = std::move(ciphertext);
+        std::copy(ciphertext.begin(), ciphertext.end(), all_ciphertexts.begin() + i * 256);
     }
 
     auto end_enc = std::chrono::high_resolution_clock::now();
     auto duration_enc = std::chrono::duration_cast<std::chrono::seconds>(end_enc - start_enc);
     std::cout << "Total encryption time for " << set_size << " elements: " << duration_enc.count() << " s" << std::endl;
 
-    
-    for (uint32_t i = 0; i < set_size; i++) {
-        auto ciphertext = ciphertexts[i];
+    // Start online phase
+    auto start_online = std::chrono::high_resolution_clock::now();
 
-        int sent = send(sock, ciphertext.data(), ciphertext.size(), 0);
-        if (sent != 256) {
-            std::cerr << "Failed to send complete ciphertext for element " << (i + 1) << std::endl;
+    send(sock, &net_set_size, sizeof(net_set_size), 0);
+    std::cout << "Sent set size: " << set_size << std::endl;
+
+    size_t total_to_send = set_size * 256;
+    size_t total_sent = 0;
+    while(total_sent < total_to_send) {
+        int sent = send(sock, all_ciphertexts.data() + total_sent, total_to_send - total_sent, 0);
+        if(sent <= 0) {
+             std::cerr << "Failed to send batch ciphertexts." << std::endl;
+             break;
+        }
+        total_sent += sent;
+    }
+
+    std::vector<uint8_t> response_bits((set_size + 7) / 8, 0);
+    int total_read = 0;
+    while (total_read < response_bits.size()) {
+        int bytes_read = read(sock, response_bits.data() + total_read, response_bits.size() - total_read);
+        if (bytes_read <= 0) {
+            std::cerr << "Failed to read response from server." << std::endl;
             break;
         }
+        total_read += bytes_read;
+    }
 
-        // std::cout << "Encrypted query " << (i + 1) << " (Value: " << current_query_value << ") sent successfully." << std::endl;
+    auto end_online = std::chrono::high_resolution_clock::now();
+    auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
+    std::cout << "Online time taken: " << duration_online.count()*(1e-6) << " s" << std::endl;
+
+    if (total_read == response_bits.size()) {
+        for (uint32_t i = 0; i < set_size; i++) {
+            bool in_intersection = (response_bits[i / 8] & (1 << (i % 8))) != 0;
+            if (in_intersection) {
+                std::cout << "Element " << client_set[i] << " is IN the intersection." << std::endl;
+            } else {
+                std::cout << "Element " << client_set[i] << " is NOT in the intersection." << std::endl;
+            }
+        }
     }
 
     close(sock);
