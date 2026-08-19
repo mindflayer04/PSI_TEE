@@ -1,7 +1,7 @@
 # Private Set Union (PSU)
 
 ## Overview
-This application implements the Private Set Union (PSU) protocol utilizing the parallel Oblivious Map. In PSU, the client and server jointly compute the union of their sets. The client securely learns the complete union without the server learning which elements were contributed by the client.
+This repository implements the Unbalanced Private Set Union (PSU) protocol utilizing the parallel Oblivious Map. In PSU, the server  computes the union of their sets without leaking any additional information.
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Manages the socket connections and orchestrates the transmission of batch ciphertexts representing the client's set.
