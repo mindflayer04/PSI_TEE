@@ -1,7 +1,7 @@
 # Faster Than Ever PSI (Private Set Intersection) with Intel SGX
 
 ## Abstract
-Welcome to the NDSS Artifact Evaluation for our paper presenting a high-performance Private Set Intersection (PSI) protocol utilizing Intel SGX and highly parallel Oblivious Maps (oMaps). This repository provides the complete implementation of our proposed Standard PSI and Circuit PSI protocols, optimized for external memory efficiency. 
+This repository contains the reference implementation for our **Unbalanced Private Set Intersection (PSI)** protocol and its variants. Built on Intel SGX and optimized with a parallel Oblivious Map (OMap) data structure, this repository also includes the complete implementation of our **Unbalanced Private Set Union (PSU)** protocol and its different variants.
 
 > [!WARNING]
 > **Hardware & Environment Warning**
@@ -13,13 +13,13 @@ Welcome to the NDSS Artifact Evaluation for our paper presenting a high-performa
 
 ## Protocol Overview
 
-This repository implements six core protocols utilizing an offline-online model combined with Trusted Execution Environments (Intel SGX):
-- **PSI (Private Set Intersection)**: Safely computes the intersection of client and server datasets.
-- **PSI-CARD**: Computes only the cardinality (size) of the intersection.
-- **PSI-UPD**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
-- **PSU (Private Set Union)**: Merges both datasets securely.
-- **PSU-CARD**: Computes the size of the set union.
-- **PSU-UPD**: An updatable PSU variant.
+This repository implements six core protocols utilizing a preprocessing based offline-online model combined with Trusted Execution Environments (e.g., Intel SGX):
+- **PSI (Private Set Intersection)**: Computes the intersection between the client and the server datasets.
+- **PSI-CARD (Private Set Intersection Cardinality)**: Computes only the cardinality (size) of the intersection and the client receives it only.
+- **UPSI (Updatable Private Set Intersection)**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
+- **PSU (Private Set Union)**: It computes the union of both datasets securely and the server receives it.
+- **PSU-CARD**: Computes the size of the set union and the server receives it only.
+- **UPSU (Updatable Private Set Union)**: An updatable variant of unbalanced PSU protocol.
 
 These protocols rely heavily on two critical cryptographic dependencies:
 - **OMap (Oblivious Map)**: Prevents access pattern leakage by utilizing the EnigMap data structure. Repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
