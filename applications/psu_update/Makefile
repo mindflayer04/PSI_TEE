@@ -92,7 +92,7 @@ else
 endif
 
 App_Cpp_Files := App/App.cpp $(wildcard App/TrustedLibrary/*.cpp)
-App_Include_Paths := -IApp -I$(SGX_SDK)/include -I../../omap/
+App_Include_Paths := -IApp -I$(SGX_SDK)/include -I../../omap/ -I../../BLAKE3/c
 
 App_C_Flags := -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -118,6 +118,13 @@ endif
 App_Link_Flags := -L$(SGX_LIBRARY_PATH) -l$(Urts_Library_Name) -lpthread -lsgx_uswitchless -lcrypto
 
 App_Cpp_Objects := $(App_Cpp_Files:.cpp=.o)
+
+BLAKE3_DIR := ../../BLAKE3/c
+BLAKE3_C_FILES := $(BLAKE3_DIR)/blake3.c $(BLAKE3_DIR)/blake3_dispatch.c $(BLAKE3_DIR)/blake3_portable.c
+BLAKE3_S_FILES := $(BLAKE3_DIR)/blake3_sse2_x86-64_unix.S $(BLAKE3_DIR)/blake3_sse41_x86-64_unix.S $(BLAKE3_DIR)/blake3_avx2_x86-64_unix.S $(BLAKE3_DIR)/blake3_avx512_x86-64_unix.S
+BLAKE3_C_OBJECTS := $(BLAKE3_C_FILES:.c=.o)
+BLAKE3_S_OBJECTS := $(BLAKE3_S_FILES:.S=.o)
+BLAKE3_OBJECTS := $(BLAKE3_C_OBJECTS) $(BLAKE3_S_OBJECTS)
 
 App_Name := omap.elf
 
@@ -280,7 +287,15 @@ App/%.o: App/%.cpp App/Enclave_u.h
 	@$(CXX) $(SGX_COMMON_CXXFLAGS) $(App_Cpp_Flags) -c $< -o $@
 	@echo "CXX  <=  $<"
 
-$(App_Name): App/Enclave_u.o $(App_Cpp_Objects)
+$(BLAKE3_C_OBJECTS): %.o: %.c
+	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(BLAKE3_S_OBJECTS): %.o: %.S
+	@$(CC) $(SGX_COMMON_CFLAGS) $(App_C_Flags) -c $< -o $@
+	@echo "CC   <=  $<"
+
+$(App_Name): App/Enclave_u.o $(App_Cpp_Objects) $(BLAKE3_OBJECTS)
 	@$(CXX) $^ -o $@ $(App_Link_Flags)
 	@echo "LINK =>  $@"
 
@@ -327,5 +342,5 @@ clean:
 	@rm -f public_key.pem sealed_rsa_private_key.bin
 	@rm -f client
 
-client: client.cpp
-	g++ -oclient client.cpp -lcrypto
+client: client.cpp $(BLAKE3_OBJECTS)
+	g++ -O3 -std=c++17 -I../../BLAKE3/c -oclient client.cpp $(BLAKE3_OBJECTS) -lcrypto

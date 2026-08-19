@@ -45,7 +45,9 @@ struct Vector {
 
   
   using Server = EM::MemoryServer::NonCachedServerFrontendInstance<
-      Page, ::EM::Backend::MemServerBackend, EM::MemoryServer::EncryptType::ENCRYPT_AND_AUTH, LATE_INIT>;
+      Page, ::EM::Backend::MemServerBackend, 
+      (AUTH ? EM::MemoryServer::EncryptType::ENCRYPT_AND_AUTH : (ENCRYPTED ? EM::MemoryServer::EncryptType::ENCRYPT : EM::MemoryServer::EncryptType::NONE)), 
+      LATE_INIT>;
 #endif
 
   // fileserver here.
