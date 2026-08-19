@@ -17,8 +17,8 @@
 #include <unistd.h>
 #include <cstring>
 
-#define SERVER_PORT 8081
-#define SERVER_IP "127.0.0.1"
+#define SERVER_PORT 8080
+#define SERVER_IP "0.0.0.0"
 
 #include "../../BLAKE3/c/blake3.h"
 
@@ -167,6 +167,7 @@ int main(){
 
     int sock = 0;
     struct sockaddr_in serv_addr;
+    size_t total_comm_bytes = 0;
 
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         std::cerr << "Socket creation error" << std::endl;
@@ -198,6 +199,7 @@ int main(){
         }
         total_key_read += bytes_read;
     }
+    total_comm_bytes += total_key_read;
     std::cout << "Public key received successfully." << std::endl;
 
     std::vector<uint64_t> client_set = {10,30,50,100};
@@ -236,6 +238,7 @@ int main(){
     auto start_online = std::chrono::high_resolution_clock::now();
 
     send(sock, &net_set_size, sizeof(net_set_size), 0);
+    total_comm_bytes += sizeof(net_set_size);
     std::cout << "Sent set size: " << set_size << std::endl;
 
     size_t total_to_send = set_size * 256;
@@ -248,6 +251,7 @@ int main(){
         }
         total_sent += sent;
     }
+    total_comm_bytes += total_sent;
 
     if (choice == 1 || choice == 3) {
         std::vector<uint8_t> response_bits((set_size + 7) / 8, 0);
@@ -260,6 +264,7 @@ int main(){
             }
             total_read += bytes_read;
         }
+        total_comm_bytes += total_read;
 
         auto end_online = std::chrono::high_resolution_clock::now();
         auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
@@ -269,15 +274,16 @@ int main(){
             for (uint32_t i = 0; i < set_size; i++) {
                 bool in_intersection = (response_bits[i / 8] & (1 << (i % 8))) != 0;
                 if (in_intersection) {
-                    std::cout << "Element " << client_set[i] << " is IN the intersection." << std::endl;
+                    std::cerr << "Element " << client_set[i] << " is IN the intersection." << std::endl;
                 } else {
-                    std::cout << "Element " << client_set[i] << " is NOT in the intersection." << std::endl;
+                    std::cerr << "Element " << client_set[i] << " is NOT in the intersection." << std::endl;
                 }
             }
         }
     } else if (choice == 2) {
         uint32_t net_count = 0;
         int size_read = read(sock, &net_count, sizeof(net_count));
+        if (size_read > 0) total_comm_bytes += size_read;
         
         auto end_online = std::chrono::high_resolution_clock::now();
         auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
@@ -292,6 +298,7 @@ int main(){
     } else if (choice >= 4 && choice <= 6) {
         uint32_t net_union_size = 0;
         int size_read = read(sock, &net_union_size, sizeof(net_union_size));
+        if (size_read > 0) total_comm_bytes += size_read;
         
         auto end_online = std::chrono::high_resolution_clock::now();
         auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
@@ -309,6 +316,7 @@ int main(){
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     std::cout << "Total time taken: " << duration.count()*(1e-6) << " s" << std::endl;
+    std::cout << "Total communication size: " << total_comm_bytes / 1024.0 << " KB" << std::endl;
 
     return 0;
 }

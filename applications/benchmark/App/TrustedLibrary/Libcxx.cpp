@@ -35,7 +35,7 @@
 
 #include "blake3.h"
 
-#define SERVER_PORT 8081
+#define SERVER_PORT 8080
 
 
 std::vector<uint64_t> generateDistinctRandom(uint64_t n) {
