@@ -16,6 +16,7 @@
 #include <unordered_set>
 #include <random>
 #include <cstdint>
+#include <chrono>
 
 
 // Network headers
@@ -353,6 +354,11 @@ void ActualMain(void) {
             continue;
         }
 
+        auto online_start = std::chrono::high_resolution_clock::now();
+        double online_communication_time = 0;
+        double online_computation_time = 0;
+        auto comm_start = online_start;
+
         std::cout << "[Host] Client connected. Sending public key..." << std::endl;
         int sent_bytes = send(client_socket, public_modulus.data(), 256, 0);
         if (sent_bytes != 256) {
@@ -377,7 +383,12 @@ void ActualMain(void) {
                 total_read += bytes_read;
             }
 
+            auto comm_end = std::chrono::high_resolution_clock::now();
+            online_communication_time += std::chrono::duration_cast<std::chrono::microseconds>(comm_end - comm_start).count() / 1000.0;
+
             if (total_read == total_expected) {
+                auto comp_start = std::chrono::high_resolution_clock::now();
+                
                 sgx_status_t op_status;
                 std::vector<uint8_t> found_array(set_size, 0);
                 std::vector<__uint128_t> value_out_array(set_size, 0);
@@ -398,23 +409,34 @@ void ActualMain(void) {
 
                 if (status != SGX_SUCCESS || op_status != SGX_SUCCESS) {
                     std::cerr << "[Host] Enclave failed to process batch." << std::endl;
+                    auto comp_end = std::chrono::high_resolution_clock::now();
+                    online_computation_time += std::chrono::duration_cast<std::chrono::microseconds>(comp_end - comp_start).count() / 1000.0;
                 } else {
+                    std::vector<uint8_t> response_bits;
+                    uint32_t net_count = 0;
+                    uint32_t net_union_size = 0;
+                    
+                    const void* send_data = nullptr;
+                    size_t send_size = 0;
+
                     if (choice == 1 || choice == 3) {
-                        std::vector<uint8_t> response_bits((set_size + 7) / 8, 0);
+                        response_bits.resize((set_size + 7) / 8, 0);
                         for (uint32_t i = 0; i < set_size; i++) {
                             if (found_array[i]) {
                                 response_bits[i / 8] |= (1 << (i % 8));
                             }
                         }
-                        send(client_socket, response_bits.data(), response_bits.size(), 0);
+                        send_data = response_bits.data();
+                        send_size = response_bits.size();
                     } else if (choice == 2) {
                         uint32_t count = 0;
                         for (uint32_t i = 0; i < set_size; i++) {
                             if (found_array[i]) count++;
                         }
-                        uint32_t net_count = htonl(count);
-                        send(client_socket, &net_count, sizeof(net_count), 0);
+                        net_count = htonl(count);
                         std::cout << "[Host] Intersection count: " << count << std::endl;
+                        send_data = &net_count;
+                        send_size = sizeof(net_count);
                     } else if (choice == 4 || choice == 5) {
                         // PSU and PSU Cardinality
                         uint32_t union_size = hashed_set.size();
@@ -423,8 +445,9 @@ void ActualMain(void) {
                                 union_size++;
                             }
                         }
-                        uint32_t net_union_size = htonl(union_size);
-                        send(client_socket, &net_union_size, sizeof(net_union_size), 0);
+                        net_union_size = htonl(union_size);
+                        send_data = &net_union_size;
+                        send_size = sizeof(net_union_size);
                     } else if (choice == 6) {
                         // PSU Update
                         uint32_t union_size = hashed_set.size(); 
@@ -436,12 +459,34 @@ void ActualMain(void) {
                                 ecall_insert_element(global_eid, &op_status, value_out_array[i]);
                             }
                         }
-                        uint32_t net_union_size = htonl(union_size);
-                        send(client_socket, &net_union_size, sizeof(net_union_size), 0);
+                        net_union_size = htonl(union_size);
+                        send_data = &net_union_size;
+                        send_size = sizeof(net_union_size);
+                    }
+
+                    auto comp_end = std::chrono::high_resolution_clock::now();
+                    online_computation_time += std::chrono::duration_cast<std::chrono::microseconds>(comp_end - comp_start).count() / 1000.0;
+
+                    if (send_data && send_size > 0) {
+                        auto comm2_start = std::chrono::high_resolution_clock::now();
+                        send(client_socket, send_data, send_size, 0);
+                        auto comm2_end = std::chrono::high_resolution_clock::now();
+                        online_communication_time += std::chrono::duration_cast<std::chrono::microseconds>(comm2_end - comm2_start).count() / 1000.0;
                     }
                 }
             }
+        } else {
+            auto comm_end = std::chrono::high_resolution_clock::now();
+            online_communication_time += std::chrono::duration_cast<std::chrono::microseconds>(comm_end - comm_start).count() / 1000.0;
         }
+
+        auto online_end = std::chrono::high_resolution_clock::now();
+        double online_total_time = std::chrono::duration_cast<std::chrono::microseconds>(online_end - online_start).count() / 1000.0;
+
+        std::cout << "[Host] Online Phase Total Time: " << online_total_time << " ms" << std::endl;
+        std::cout << "[Host]   - Communication Time: " << online_communication_time << " ms" << std::endl;
+        std::cout << "[Host]   - Computation Time: " << online_computation_time << " ms" << std::endl;
+
         close(client_socket);
         std::cout << "[Host] Client disconnected.\n" << std::endl;
         cnt++;
