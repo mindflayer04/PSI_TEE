@@ -256,10 +256,13 @@ void ActualMain(void) {
     }
 
     sgx_status_t map_status;
+    auto insert_start = std::chrono::high_resolution_clock::now();
     ret = ecall_createMap(global_eid,&map_status, hashed_set.data(), hashed_set.size());
+    auto insert_end = std::chrono::high_resolution_clock::now();
+    double insert_time = std::chrono::duration_cast<std::chrono::microseconds>(insert_end - insert_start).count() / 1000.0;
 
     if(ret==SGX_SUCCESS && map_status==SGX_SUCCESS){
-        std::cout << "[Host] Map created successfully in enclave." << std::endl;
+        std::cout << "[Host] Map created successfully in enclave. Time taken: " << insert_time << " ms" << std::endl;
     }
     else{
         std::cerr << "[Host] Failed to create map in enclave. Error: " << std::hex << ret << " " << std::hex << map_status << std::endl;

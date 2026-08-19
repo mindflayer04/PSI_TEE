@@ -313,7 +313,7 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   ocall_measure_time(&end);
   timediff = end - start_insert;
   printf("[Enclave] Insert time %f s\n", (double)timediff * 1e-9);
-  printf("[Enclave] Total Preprocessing for set size %d time %f s\n", set_size, (double)(end - start) * 1e-9);
+  printf("[Enclave] Total Preprocessing for set size %zu time %f s\n", set_size, (double)(end - start) * 1e-9);
 }
 
 sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
