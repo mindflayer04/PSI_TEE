@@ -1,7 +1,15 @@
 # Benchmark Application
 
 ## Overview
-This application serves as the primary evaluation suite for benchmarking the performance of the Oblivious Map (oMap) and the various Private Set Intersection (PSI) and Private Set Union (PSU) protocols. It allows users to quickly test multiple protocols under fixed conditions.
+This application exists as an easy, unified way to benchmark the actual 6 protocols (PSI, PSU, and their variants) without needing to configure and run each one individually. It provides an interactive environment where users can quickly test the performance of these implementations under fixed conditions.
+
+For in-depth details on how each of the 6 protocols works, please refer to their dedicated READMEs:
+- [Standard PSI](../psi/README.md)
+- [PSI Cardinality](../psi_card/README.md)
+- [Updatable PSI](../psi_update/README.md)
+- [Standard PSU](../psu/README.md)
+- [PSU Cardinality](../psu_card/README.md)
+- [Updatable PSU](../psu_update/README.md)
 
 ## Architecture
 Like all SGX applications in this repository, it is split into two components:
@@ -15,18 +23,25 @@ You can execute this benchmark manually using the automated build script, which 
    ```bash
    ./algo_runner.sh 1
    ```
-   Select the desired protocol from the interactive menu.
+   An interactive menu will open up on the server side. You must select which of the 6 protocols you wish to benchmark by entering the corresponding number.
 
 2. **Start the Client (New Terminal):**
    ```bash
    make client
    ./client
    ```
-   Select the *matching* protocol from the client's interactive menu.
+   An interactive menu will also open up on the client side. You must select the *exact same* protocol that you selected on the server to begin the benchmark.
 
 ## Expected Output
-The client application will print the final performance metrics to standard output, specifically:
+Depending on the specific protocol chosen from the interactive menu, the client application will calculate and print the final performance metrics to standard output. A complete execution will output phrases identical to the following:
+- `Total encryption time for [N] elements: [X.X] s`
+- `Sent set size: [N]`
 - `Online time taken: [X.X] s`
+- `Total time taken: [X.X] s`
 - `Total communication size: [X.X] KB`
+
+If you are running a Cardinality or Update protocol, you may also see additional contextual output, such as:
+- `Intersection count: [N]`
+- `Union size: [N]`
 
 These logs are critical for verifying the performance claims of the evaluated protocols.
