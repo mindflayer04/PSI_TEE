@@ -11,6 +11,22 @@ Welcome to the NDSS Artifact Evaluation for our paper presenting a high-performa
 
 ---
 
+## Protocol Overview
+
+This repository implements six core protocols utilizing an offline-online model combined with Trusted Execution Environments (Intel SGX):
+- **PSI (Private Set Intersection)**: Safely computes the intersection of client and server datasets.
+- **PSI-CARD**: Computes only the cardinality (size) of the intersection.
+- **PSI-UPD**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
+- **PSU (Private Set Union)**: Merges both datasets securely.
+- **PSU-CARD**: Computes the size of the set union.
+- **PSU-UPD**: An updatable PSU variant.
+
+These protocols rely heavily on two critical cryptographic dependencies:
+- **OMap (Oblivious Map)**: Prevents access pattern leakage by utilizing the EnigMap data structure. Repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
+- **O-Shuffle (Oblivious Shuffling)**: Hides the relationship between input and output positions via the FlexWay O-Shuffle Algorithm. Repository: [odslib/oblsort](https://github.com/odslib/oblsort).
+
+For in-depth details on each protocol, refer to the READMEs located inside the respective application folders.
+
 ## Directory Structure
 
 Explore the dedicated READMEs for each sub-application for deeper technical insights:
