@@ -1,7 +1,7 @@
 # Updatable Unbalanced Private Set Intersection (UPSI) Protocol
 
 ## Overview
-This application implements the **one sided unbalanced undatable PSI** protocol. The server can dynamically insert new elements into, or delete existing elements from, the preprocessed data structure by updating the underlying Oblivious Map. The client can then execute the PSI protocol against this newly updated database. This capability is particularly advantageous for password monitoring systems, where clients must privately check their credentials against an ever-evolving list of breached passwords.
+This application implements the **one sided** Unbalanced Updatable PSI protocol. The server can dynamically insert new elements into, or delete existing elements from, the preprocessed data structure by updating the underlying Oblivious Map. The client can then execute the PSI protocol against this newly updated database. This capability is particularly advantageous for password monitoring systems, where clients must privately check their credentials against an ever-evolving list of breached passwords.
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Relays the standard batch ciphertexts and then subsequently relays the encrypted update payloads.
