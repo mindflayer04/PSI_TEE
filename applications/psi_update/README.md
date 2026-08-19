@@ -1,7 +1,7 @@
-# Private Set Intersection - Update (PSI-Update)
+# Updatable Unbalanced Private Set Intersection (UPSI) Protocol
 
 ## Overview
-This application implements the PSI Update protocol. It builds upon standard PSI by allowing the client to dynamically insert new elements into the server's Oblivious Map post-intersection, effectively updating the server's private set for future queries without exposing the updated elements to the host OS.
+This application implements the **one sided unbalanced undatable PSI** protocol. The server can dynamically insert new elements into, or delete existing elements from, the preprocessed data structure by updating the underlying Oblivious Map. The client can then execute the PSI protocol against this newly updated database. This capability is particularly advantageous for password monitoring systems, where clients must privately check their credentials against an ever-evolving list of breached passwords.
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Relays the standard batch ciphertexts and then subsequently relays the encrypted update payloads.
@@ -9,7 +9,7 @@ This application implements the PSI Update protocol. It builds upon standard PSI
 
 ## Protocol Details
 
-This application implements the Updatable Private Set Intersection (PSI-UPD) protocol. It extends the standard PSI protocol by allowing the server to dynamically add or remove elements from its dataset over time, without having to rebuild the entire secure search tree from scratch.
+This repository implements the Updatable Unbalanced Private Set Intersection (UPSI) protocol. It extends the standard PSI protocol by allowing the server to dynamically add or remove elements from its dataset over the time, without having to rebuild the entire OMap search tree from scratch.
 
 ### Setup and Update Phases
 When the server needs to update its dataset (additions or deletions):
@@ -25,7 +25,7 @@ The online query phase remains exactly the same as the standard PSI protocol:
 
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:
-- **OMap (Oblivious Map)**: We utilize the EnigMap data structure for external-memory oblivious maps for secure enclaves. This prevents an adversary from inferring information by observing memory access patterns. EnigMap achieves search, insert, and delete operations in $O(\log^2 N)$ time. Original repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
+- **OMap (Oblivious Map)**: We utilize the EnigMap data structure for external-memory oblivious maps for secure enclaves. This prevents an adversary from inferring information by observing memory access patterns. EnigMap achieves search, insert, and delete operations in $\bar{O}(\log^2 N_{s})$ time. Original repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
 - **O-Shuffle (Oblivious Shuffling)**: We use the FlexWay O-Shuffle algorithm to randomly permute the dataset in a manner that hides the relationship between input and output positions. Original repository: [odslib/oblsort](https://github.com/odslib/oblsort).
 
 ## Execution Instructions
