@@ -101,8 +101,9 @@ The client will present a matching interactive menu. **Select the identical prot
 Once the protocol finishes, the client will terminate and print the final metrics directly to your console (Terminal 2).
 
 Reviewers should look for the following exact phrases in the standard output to verify the performance claims presented in the paper:
-- **`Online time taken: [X.X] s`** (or `ms`)
-- **`Total communication size: [X.X] KB`** (or `MB`)
+- **`Online time taken: [X.X] s`**
+- **`Total time taken: [X.X] s`**
+- **`Total communication size: [X.X] KB`**
 
 These metrics correspond directly to the execution time and total communication bounds evaluated in our experimental results.
 
@@ -127,8 +128,8 @@ The maximum amount of RAM the enclave is allowed to utilize is controlled dynami
 To increase the Enclave RAM allocation for larger datasets, modify the `MIN_ENCLAVE_SIZE` and `MAX_ENCLAVE_SIZE` bounds in `algo_runner.sh`.
 
 ### Server Backend Size (Handling Bigger Elements)
-The current configuration optimizes memory footprints based on the standard protocol requirements. If you wish to run the application with **bigger elements** (i.e., larger cryptographic payloads or keys), you must correspondingly increase the server's backend storage size.
+The current configuration optimizes memory footprints based on the standard protocol requirements. If you wish to run the application with **bigger elements** (i.e., larger cryptographic payloads or keys), you must correspondingly increase the server's backend storage size. To do this, modify the `size_t BackendSize` variable located in the `Enclave/TrustedLibrary/omap_test.cpp` file of the respective application directory.
 
 > [!TIP]
 > **Backend Size Logic:**
-> When calculating the required backend storage for custom element sizes, you can take a **conservative approach of 64 bytes per element**. Therefore, if you are computing an intersection for $N$ custom elements, you should configure the backend size to accommodate at least $N \times 64$ bytes of storage. This buffer safely accounts for metadata and cipher overhead.
+> When calculating the required backend storage for custom element sizes, you can take a **conservative approach of 64 bytes per element**. Therefore, if you are computing an intersection for $N$ custom elements, you should configure the `BackendSize` variable to accommodate at least $N \times 64$ bytes of storage. This buffer safely accounts for metadata and cipher overhead.

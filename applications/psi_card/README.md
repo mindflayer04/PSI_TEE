@@ -44,5 +44,8 @@ The execution follows the split-terminal architecture.
 
 ## Expected Output
 The client will log the online phase time and the final intersection count:
+- `Total encryption time for [N] elements: [X.X] s`
+- `Sent set size: [N]`
 - `Online time taken: [X.X] s`
 - `Intersection count: [N]`
+- `Total time taken: [X.X] s`

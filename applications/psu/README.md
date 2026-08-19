@@ -43,6 +43,8 @@ The execution follows the split-terminal architecture.
    ```
 
 ## Expected Output
-The client will output the online timings and the final calculated size of the union:
+The client will output the online timings:
+- `Total encryption time for [N] elements: [X.X] s`
+- `Sent set size: [N]`
 - `Online time taken: [X.X] s`
-- `Union size: [N]`
+- `Total time taken: [X.X] s`

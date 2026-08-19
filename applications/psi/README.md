@@ -49,5 +49,8 @@ The execution uses a split-terminal architecture.
 ## Expected Output
 The server will log connection events and online phase timings (computation vs. communication). 
 The client will output standard network timings and explicitly state which elements are in the intersection:
+- `Total encryption time for [N] elements: [X.X] s`
+- `Sent set size: [N]`
 - `Online time taken: [X.X] s`
-- `Element [Y] is IN the intersection.`
+- `Element [Y] is IN the intersection.` (or `NOT in the intersection.`)
+- `Total time taken: [X.X] s`

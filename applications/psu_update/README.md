@@ -44,5 +44,8 @@ The execution follows the split-terminal architecture.
 ## Expected Output
 The server will log the processing of the batch queries and the subsequent insertions into the OMAP.
 The client will output the standard network timings:
+- `Total encryption time for [N] elements: [X.X] s`
+- `Sent set size: [N]`
 - `Online time taken: [X.X] s`
 - `Union size: [N]`
+- `Total time taken: [X.X] s`
