@@ -324,7 +324,7 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   }
   // Estimate backend bytes needed (conservative): ~64 bytes per element
   const size_t PER_ELEMENT_ESTIMATE = 64; // tune this for tighter sizing
-  size_t BackendSize = 2e12; // 1.5 TB // at least 1MB
+  size_t BackendSize = 1e10; // 1.5 TB // at least 1MB
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {

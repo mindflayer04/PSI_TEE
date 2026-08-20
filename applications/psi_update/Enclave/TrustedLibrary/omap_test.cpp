@@ -318,7 +318,7 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 2e12; // 1.5 TB
+  size_t BackendSize = 1e10; // 1.5 TB
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {
