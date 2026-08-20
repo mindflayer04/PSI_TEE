@@ -1,4 +1,4 @@
-# Private Set Union (PSU)
+# Unbalanced Private Set Union (PSU) Protocol
 
 ## Overview
 This repository implements the Unbalanced Private Set Union (PSU) protocol utilizing the parallel Oblivious Map. In PSU, the server  computes the union of their sets without leaking any additional information.
@@ -9,7 +9,7 @@ This repository implements the Unbalanced Private Set Union (PSU) protocol utili
 
 ## Protocol Details
 
-This application implements the Private Set Union (PSU) protocol, which allows two parties to compute their combined datasets without the client seeing the server's data.
+This repository implements the Unbalanced Private Set Union (PSU) protocol, which allows two parties to compute their combined datasets without the client seeing the server's data.
 
 ### Offline Setup Phase
 1. The server generates encryption keys, encrypts its own dataset, obliviously shuffles it, and builds a secure search tree. 
@@ -20,7 +20,7 @@ This application implements the Private Set Union (PSU) protocol, which allows t
 2. Inside the secure enclave, the server starts a new list using its own original dataset as the base. 
 3. It then decrypts each of the client's items and obliviously searches for it in the secure tree. 
 4. If an item is not found (meaning it is unique to the client), the enclave adds it to the combined list. If it is already there, it gets discarded.
-5. Finally, the enclave outputs this merged list.
+5. Finally, the enclave outputs this merged list and the server receives the final union only.
 
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:
