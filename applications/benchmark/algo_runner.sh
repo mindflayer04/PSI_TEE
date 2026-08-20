@@ -6,8 +6,8 @@ cp ../../omap/common/encutils.cpp ./Enclave/TrustedLibrary/encutils.cpp
 SGX_MODE=HW # HW or SIM
 
 # Algorithms:
-MIN_ENCLAVE_SIZE=194560   # 190 GB
-MAX_ENCLAVE_SIZE=194560   # 190 GB
+MIN_ENCLAVE_SIZE=256   
+MAX_ENCLAVE_SIZE=1024   
 CORE_ID=1 # the cpu core id to run the program
 DISK_IO=1 # 0: no disk IO, 1: disk IO
 TCS_NUM=32
