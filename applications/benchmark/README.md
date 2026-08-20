@@ -16,12 +16,12 @@ For in-depth details on how each of the 6 protocols works, please refer to their
 ## Supported Protocols
 The benchmark suite supports the following 6 protocols selectable via an interactive menu:
 
-1. **PSI (Private Set Intersection)**: Checks set intersection and returns a bitset vector indicating which client elements belong to the server set.
-2. **PSI Cardinality**: Returns only the total number (count) of matching items in the intersection without revealing individual elements.
-3. **PSI Update**: Evaluates PSI with updatable datasets. Includes offline insertion/deletion benchmarks and online intersection checks.
-4. **PSU (Private Set Union)**: Evaluates private set union where client elements are obliviously evaluated against the server's set.
-5. **PSU Cardinality**: Computes and returns the total size (cardinality) of the combined set union $|X \cup Y|$.
-6. **PSU Update**: Evaluates PSU with dynamic updates. Newly identified elements from the query are batch-inserted into the enclave's Oblivious Map.
+- **PSI (Unbalanced  Private Set Intersection)**: Computes the intersection between the client and the server datasets.
+- **PSI-CA (Unbalanced  Private Set Intersection Cardinality)**: Computes only the cardinality (size) of the intersection and the client receives it only.
+- **UPSI (Updatable Unbalanced  Private Set Intersection)**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
+- **PSU (Unbalanced  Private Set Union)**: It computes the union of both datasets securely and the server receives it.
+- **PSU-CA (Unbalanced Private Set Union Cardinality)**: Computes the size of the set union and the server receives it only.
+- **UPSU (Unbalanced  Updatable Private Set Union)**: An updatable variant of unbalanced PSU protocol.
 
 ---
 

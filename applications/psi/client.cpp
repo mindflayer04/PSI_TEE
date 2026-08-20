@@ -195,8 +195,8 @@ int main(){
 
 
     std::vector<uint64_t> client_set;
-    for(uint64_t i=0;i<(1<<11);i++){
-        client_set.push_back(i+1);
+    for(uint64_t i = 1; i <= (1<<8); i++){
+        client_set.push_back(i);
     }
     // std::vector<uint64_t> client_set = {10,30,50,100};
     uint32_t set_size = client_set.size();

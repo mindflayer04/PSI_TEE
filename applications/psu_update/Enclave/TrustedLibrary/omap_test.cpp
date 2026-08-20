@@ -22,7 +22,7 @@
 #define MB << 20
 #define RSA_2048_SIZE 256
 #define RSA_2048_HALF 128
-#define GLOBAL_BATCH_SIZE 100000
+#define GLOBAL_BATCH_SIZE 1000000
 
 #define ASSERT_TRUE(expr)                           \
   if (!expr) {                                      \
@@ -318,7 +318,9 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   size_t mapCapacity = set_size * 2;
   int threadCount = 4;
   g_globalMap = new ParOMap<__uint128_t,int64_t, uint32_t>(mapCapacity, threadCount);
-  g_globalMap->Init();
+  // Limit the cache size to 150 GB to maximize performance while staying under 190GB HeapMaxSize
+  uint64_t cacheSize = 150ULL * 1024 * 1024 * 1024; // 150 GB
+  g_globalMap->Init(cacheSize);
 
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
@@ -344,14 +346,14 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   ocall_measure_time(&end);
   timediff = end - start_insert;
   printf("[Enclave] Insert time %f s\n", (double)timediff * 1e-9);
-  printf("[Enclave] Total Preprocessing for set size %d time %f s\n", set_size, (double)(end - start) * 1e-9);
+  printf("[Enclave] Total Preprocessing for set size %zu time %f s\n", set_size, (double)(end - start) * 1e-9);
 }
 
 sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e5;
+  size_t BackendSize = 2e12; // 1.5 TB
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {
