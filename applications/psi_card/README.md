@@ -1,7 +1,7 @@
-# Private Set Intersection Cardinality (PSI-CA)
+# Unbalanced Private Set Intersection Cardinality (PSI-CA)
 
 ## Overview
-This application implements a variation of the standard PSI protocol known as PSI Cardinality (PSI-CA). In this protocol, the client only learns the *total size* (cardinality) of the intersection, rather than the specific elements that matched and the server receives nothing.
+This repository implements a variation of the unbalanced PSI protocol known as PSI Cardinality (PSI-CA). In this protocol, the client only learns the *total size* (cardinality) of the intersection, rather than the specific elements that matched and the server receives nothing.
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Manages the socket connections and orchestrates the batch transmission of ciphertexts from the client.
@@ -9,7 +9,7 @@ This application implements a variation of the standard PSI protocol known as PS
 
 ## Protocol Details
 
-This application implements the Private Set Intersection Cardinality (PSI-CA) protocol. It allows the client to learn the total number of matching items (the cardinality of the intersection), but it does not reveal which specific items matched.
+This repository implements the Unbalanced Private Set Intersection Cardinality (PSI-CA) protocol. It allows the client to learn the total number of matching items (the cardinality of the intersection), but it does not reveal which specific items matched.
 
 ### Offline Setup Phase
 The setup phase is identical to the standard PSI protocol. The server generates encryption keys, hashes, encrypts, and obliviously shuffles its items, and then builds an oblivious search tree.
