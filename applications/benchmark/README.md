@@ -72,8 +72,10 @@ Open a new terminal or connect from a client machine (update `SERVER_IP` in [cli
 ```bash
 cd applications/benchmark/
 make client
-./client
+./client 2> client.log
 ```
+
+*(Note: We run the client with `2> client.log` instead of just `./client` as otherwise the `cerr` statements would also start to get printed to the console.)*
 
 Select the **exact same protocol number** that was selected on the server:
 ```text

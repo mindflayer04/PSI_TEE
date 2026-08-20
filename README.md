@@ -89,8 +89,10 @@ cd applications/benchmark/
 make client
 
 # Run the client
-./client
+./client 2> client.log
 ```
+
+*(Note: We run the client with `2> client.log` instead of just `./client` as otherwise the `cerr` statements would also start to get printed to the console.)*
 
 The client will present a matching interactive menu. **Select the identical protocol number** that you chose in Step 2. The client will connect to the server, exchange ciphertexts, and complete the protocol execution.
 

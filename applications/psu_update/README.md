@@ -43,8 +43,9 @@ The execution follows the split-terminal architecture.
 2. **Start the Client (New Terminal):**
    ```bash
    make client
-   ./client
+   ./client 2> client.log
    ```
+   *(Note: We run the client with `2> client.log` instead of just `./client` as otherwise the `cerr` statements would also start to get printed to the console.)*
 
 ## Expected Output
 The server will log the processing of the batch queries and the subsequent insertions into the OMAP.
