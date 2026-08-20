@@ -11,37 +11,133 @@ For in-depth details on how each of the 6 protocols works, please refer to their
 - [PSU Cardinality](../psu_card/README.md)
 - [Updatable PSU](../psu_update/README.md)
 
-## Architecture
-Like all SGX applications in this repository, it is split into two components:
-- **Untrusted Host (`App/`)**: Handles network connections, client interactions, and launches the enclave. It runs the primary C++ entry point (`App.cpp`) and the `ActualMain()` host logic.
-- **Trusted Enclave (`Enclave/`)**: Executes the core cryptographic operations and manages the Oblivious Map in secure memory. 
+---
+
+## Supported Protocols
+The benchmark suite supports the following 6 protocols selectable via an interactive menu:
+
+1. **PSI (Private Set Intersection)**: Checks set intersection and returns a bitset vector indicating which client elements belong to the server set.
+2. **PSI Cardinality**: Returns only the total number (count) of matching items in the intersection without revealing individual elements.
+3. **PSI Update**: Evaluates PSI with updatable datasets. Includes offline insertion/deletion benchmarks and online intersection checks.
+4. **PSU (Private Set Union)**: Evaluates private set union where client elements are obliviously evaluated against the server's set.
+5. **PSU Cardinality**: Computes and returns the total size (cardinality) of the combined set union $|X \cup Y|$.
+6. **PSU Update**: Evaluates PSU with dynamic updates. Newly identified elements from the query are batch-inserted into the enclave's Oblivious Map.
+
+---
+
+## Architecture & Optimizations
+
+Like all SGX applications in this repository, the benchmark is split into untrusted host and trusted enclave components:
+- **Untrusted Host (`App/`)**: Manages TCP socket networking, RSA public key distribution, client ciphertext reception, offline dataset initialization, and benchmarking orchestration.
+- **Trusted Enclave (`Enclave/`)**: Performs secure RSA-2048 OAEP decryption, oblivious map lookups, batch insertion/deletion (`ecall_insert_batch`, `ecall_delete_batch`), and secure union/intersection evaluations.
+
+### Key Performance & Sizing Features:
+- **Large-Scale Memory Support**: Configured with up to 190 GB Enclave Heap Size (`0x2f80000000`), 32 TCS thread slots, a 150 GB in-enclave cache, and a multi-terabyte external memory backend.
+- **Persistent Dataset across Runs**: The server dataset and Enclave OMap are constructed once at server startup. The server remains in an interactive loop allowing multiple protocols or repeated runs without re-initializing the entire map.
+- **Batch Processing**: Enclave operations leverage `GLOBAL_BATCH_SIZE` (1,000,000 elements) for fast batch insertion and deletion routines.
+
+---
 
 ## Execution Instructions
-You can execute this benchmark manually using the automated build script, which defaults to SGX Simulation Mode (`SGX_MODE=SIM`) and dynamically configures the required enclave memory limits.
 
-1. **Start the Server (Host):**
-   ```bash
-   ./algo_runner.sh 1
+The benchmark execution follows a client-server model.
+
+### 1. Start the Server (Host)
+Navigate to the benchmark directory and execute the runner script:
+```bash
+cd applications/benchmark/
+./algo_runner.sh 1
+```
+
+1. **Enter Server Dataset Size**: When prompted, enter the dataset size as a power of 2 (e.g., enter `24` for $2^{24} \approx 16.7\text{M}$ elements):
+   ```text
+   Enter the server set size (as a power of 2, e.g., 24 for 2^24): 24
    ```
-   An interactive menu will open up on the server side. You must select which of the 6 protocols you wish to benchmark by entering the corresponding number. Following this, you will be prompted to enter the server set size as a power of 2 (e.g., enter `24` for $2^{24}$).
-
-2. **Start the Client (New Terminal):**
-   ```bash
-   make client
-   ./client
+2. **Select Protocol**: Once the RSA keys are generated and the Enclave OMap is initialized, select the protocol number from the menu:
+   ```text
+   Select Protocol to Benchmark:
+   0. Exit
+   1. PSI
+   2. PSI Cardinality
+   3. PSI Update
+   4. PSU
+   5. PSU Cardinality
+   6. PSU Update
+   Enter choice (0-6): 1
    ```
-   An interactive menu will also open up on the client side. You must select the *exact same* protocol that you selected on the server to begin the benchmark.
+3. The server will run any offline update benchmarks (if Protocols 3 or 6 were selected) and begin listening on port `8080`.
 
-## Expected Output
-Depending on the specific protocol chosen from the interactive menu, the client application will calculate and print the final performance metrics to standard output. A complete execution will output phrases identical to the following:
-- `Total encryption time for [N] elements: [X.X] s`
-- `Sent set size: [N]`
-- `Online time taken: [X.X] s`
-- `Total time taken: [X.X] s`
-- `Total communication size: [X.X] KB`
+### 2. Start the Client (New Terminal / Client Node)
+Open a new terminal or connect from a client machine (update `SERVER_IP` in [client.cpp](file:///home/Jitu/PSI_aashirwad/PSI_TEE/applications/benchmark/client.cpp) if running over a network):
+```bash
+cd applications/benchmark/
+make client
+./client
+```
 
-If you are running a Cardinality or Update protocol, you may also see additional contextual output, such as:
-- `Intersection count: [N]`
-- `Union size: [N]`
+Select the **exact same protocol number** that was selected on the server:
+```text
+Select Protocol to Benchmark:
+0. Exit
+1. PSI
+2. PSI Cardinality
+3. PSI Update
+4. PSU
+5. PSU Cardinality
+6. PSU Update
+Enter choice (0-6): 1
+```
 
-These logs are critical for verifying the performance claims of the evaluated protocols.
+---
+
+## Expected Output & Metric Interpretation
+
+### Client-Side Output
+Upon completion, the client displays cryptographic timings, communication overhead, and protocol-specific outcomes:
+
+- **Common Metrics**:
+  ```text
+  Connected to server. Receiving public key...
+  Public key received successfully.
+  Total encryption time for [N] elements: [X.X] s
+  Sent set size: [N]
+  Online time taken: [X.X] s
+  Total time taken: [X.X] s
+  Total communication size: [X.X] KB
+  ```
+
+- **Protocol-Specific Outcomes**:
+  - **PSI / PSI Update (Options 1 & 3)**:
+    ```text
+    Element [X] is IN the intersection.
+    Element [Y] is NOT in the intersection.
+    ```
+  - **PSI Cardinality (Option 2)**:
+    ```text
+    Intersection count: [N]
+    ```
+  - **PSU Cardinality (Option 5)**:
+    ```text
+    Union size: [N]
+    ```
+  - **PSU / PSU Update (Options 4 & 6)**:
+    ```text
+    PSU protocol completed successfully.
+    ```
+
+### Server-Side Output
+The server logs enclave creation timings, offline update metrics, and online latency breakdown:
+- **Map Creation**: `[Host] Map created successfully in enclave. Time taken: [X.X] ms`
+- **Offline Updates (Protocols 3 & 6)**:
+  ```text
+  [Host] Total insertion timings: [X.X] ms
+  [Host] Insertion timings per element: [X.X] ms/element
+  [Host] Total deletion timings: [X.X] ms
+  [Host] Deletion timings per element: [X.X] ms/element
+  ```
+- **Online Phase Breakdown**:
+  ```text
+  [Host] Online Phase Total Time: [X.X] ms
+  [Host]   - Communication Time: [X.X] ms
+  [Host]   - Computation Time: [X.X] ms
+  ```
