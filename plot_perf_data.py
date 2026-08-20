@@ -17,16 +17,15 @@ for s_size in server_sizes:
     
     plt.figure(figsize=(10, 6))
     x = np.arange(len(protocols))
-    width = 0.25
     
-    for i, c_size in enumerate(client_sizes):
+    for c_size in client_sizes:
         c_subset = subset[subset['Client Set Size'] == c_size]
         times = []
         for p in protocols:
             val = c_subset[c_subset['Protocol'] == p]['Online Total Time (ms)'].values
             times.append(val[0] if len(val)>0 else 0)
         
-        plt.bar(x + (i - 1) * width, times, width, label=f'Client Size {c_size}')
+        plt.plot(x, times, marker='o', label=f'Client Size {c_size}')
     
     plt.ylabel('Online Total Time (ms)')
     plt.title(f'Online Total Time vs Protocol (Server Size: {s_size})')
@@ -40,14 +39,13 @@ for s_size in server_sizes:
 subset = df[df['Server Set Size'] == server_sizes[0]]
 plt.figure(figsize=(10, 6))
 x = np.arange(len(protocols))
-width = 0.25
-for i, c_size in enumerate(client_sizes):
+for c_size in client_sizes:
     c_subset = subset[subset['Client Set Size'] == c_size]
     sizes = []
     for p in protocols:
         val = c_subset[c_subset['Protocol'] == p]['Comm. Data Size'].values
         sizes.append(val[0] if len(val)>0 else 0)
-    plt.bar(x + (i - 1) * width, sizes, width, label=f'Client Size {c_size}')
+    plt.plot(x, sizes, marker='o', label=f'Client Size {c_size}')
 
 plt.ylabel('Communication Data Size (KB)')
 plt.title('Communication Data Size vs Protocol')

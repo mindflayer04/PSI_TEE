@@ -1,4 +1,4 @@
-# Faster Than Ever PSI (Private Set Intersection) with Intel SGX
+# Doubly-efficient Unbalanced  PSI and PSU from Trusted Hardware with Offline Pre-processing 
 
 ## Abstract
 This repository contains the reference implementation for our **Unbalanced Private Set Intersection (PSI)** protocol and its variants. Built on Intel SGX and optimized with a parallel Oblivious Map (OMap) data structure, this repository also includes the complete implementation of our **Unbalanced Private Set Union (PSU)** protocol and its different variants.
