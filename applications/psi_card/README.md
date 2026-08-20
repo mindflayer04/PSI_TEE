@@ -1,7 +1,7 @@
-# Private Set Intersection - Cardinality (PSI-Card)
+# Private Set Intersection Cardinality (PSI-CA)
 
 ## Overview
-This application implements a variation of the standard PSI protocol known as PSI Cardinality (PSI-Card). In this protocol, the client and server engage in an oblivious intersection, but the client only learns the *total size* (cardinality) of the intersection, rather than the specific elements that matched.
+This application implements a variation of the standard PSI protocol known as PSI Cardinality (PSI-CA). In this protocol, the client only learns the *total size* (cardinality) of the intersection, rather than the specific elements that matched and the server receives nothing.
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Manages the socket connections and orchestrates the batch transmission of ciphertexts from the client.
@@ -9,7 +9,7 @@ This application implements a variation of the standard PSI protocol known as PS
 
 ## Protocol Details
 
-This application implements the Private Set Intersection Cardinality (PSI-CARD) protocol. It allows the client to learn the total number of matching items (the cardinality of the intersection), but it does not reveal which specific items matched.
+This application implements the Private Set Intersection Cardinality (PSI-CA) protocol. It allows the client to learn the total number of matching items (the cardinality of the intersection), but it does not reveal which specific items matched.
 
 ### Offline Setup Phase
 The setup phase is identical to the standard PSI protocol. The server generates encryption keys, hashes, encrypts, and obliviously shuffles its items, and then builds an oblivious search tree.
@@ -24,7 +24,7 @@ The setup phase is identical to the standard PSI protocol. The server generates 
 
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:
-- **OMap (Oblivious Map)**: We utilize the EnigMap data structure for external-memory oblivious maps for secure enclaves. This prevents an adversary from inferring information by observing memory access patterns. EnigMap achieves search, insert, and delete operations in $O(\log^2 N)$ time. Original repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
+- **OMap (Oblivious Map)**: We utilize the EnigMap data structure for external-memory oblivious maps for secure enclaves. This prevents an adversary from inferring information by observing memory access patterns. EnigMap achieves search, insert, and delete operations in $\bar{O}(\log^2 N_{s})$ time. Original repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
 - **O-Shuffle (Oblivious Shuffling)**: We use the FlexWay O-Shuffle algorithm to randomly permute the dataset in a manner that hides the relationship between input and output positions. Original repository: [odslib/oblsort](https://github.com/odslib/oblsort).
 
 ## Execution Instructions
@@ -34,7 +34,7 @@ The execution follows the split-terminal architecture.
    ```bash
    ./algo_runner.sh 1
    ```
-   This compiles the enclave and starts listening on port 8080.
+   This compiles the enclave and starts the server. You will be prompted to enter the server set size as a power of 2 (e.g., enter `24` for $2^{24}$). The server then starts listening on port 8080.
 
 2. **Start the Client (New Terminal):**
    ```bash

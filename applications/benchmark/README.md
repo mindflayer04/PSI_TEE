@@ -23,7 +23,7 @@ You can execute this benchmark manually using the automated build script, which 
    ```bash
    ./algo_runner.sh 1
    ```
-   An interactive menu will open up on the server side. You must select which of the 6 protocols you wish to benchmark by entering the corresponding number.
+   An interactive menu will open up on the server side. You must select which of the 6 protocols you wish to benchmark by entering the corresponding number. Following this, you will be prompted to enter the server set size as a power of 2 (e.g., enter `24` for $2^{24}$).
 
 2. **Start the Client (New Terminal):**
    ```bash

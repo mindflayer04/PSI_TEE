@@ -1,25 +1,25 @@
-# Faster Than Ever PSI (Private Set Intersection) with Intel SGX
+# Doubly-efficient Unbalanced  PSI and PSU from Trusted Hardware with Offline Pre-processing 
 
 ## Abstract
-Welcome to the NDSS Artifact Evaluation for our paper presenting a high-performance Private Set Intersection (PSI) protocol utilizing Intel SGX and highly parallel Oblivious Maps (oMaps). This repository provides the complete implementation of our proposed Standard PSI and Circuit PSI protocols, optimized for external memory efficiency. 
+This repository contains the reference implementation for our **Unbalanced Private Set Intersection (PSI)** protocol and its variants. Built on Intel SGX and optimized with a parallel Oblivious Map (OMap) data structure, this repository also includes the complete implementation of our **Unbalanced Private Set Union (PSU)** protocol and its different variants.
 
 > [!WARNING]
 > **Hardware & Environment Warning**
 > 
-> To ensure maximum compatibility across reviewer environments and standard hardware, the build scripts in this artifact default to **SGX Simulation Mode (`SGX_MODE=SIM`)**. 
+> To ensure maximum compatibility across different environments and standard hardware, the build scripts in this repository default to **SGX Simulation Mode (`SGX_MODE=SIM`)**. 
 > Furthermore, to prevent Out-Of-Memory (OOM) crashes on machines with limited RAM, the dataset sizes inside the client and server benchmarks have been strictly fixed. 
 
 ---
 
 ## Protocol Overview
 
-This repository implements six core protocols utilizing an offline-online model combined with Trusted Execution Environments (Intel SGX):
-- **PSI (Private Set Intersection)**: Safely computes the intersection of client and server datasets.
-- **PSI-CARD**: Computes only the cardinality (size) of the intersection.
-- **PSI-UPD**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
-- **PSU (Private Set Union)**: Merges both datasets securely.
-- **PSU-CARD**: Computes the size of the set union.
-- **PSU-UPD**: An updatable PSU variant.
+This repository implements six core protocols utilizing a preprocessing based offline-online model combined with Trusted Execution Environments (e.g., Intel SGX):
+- **PSI (Private Set Intersection)**: Computes the intersection between the client and the server datasets.
+- **PSI-CARD (Private Set Intersection Cardinality)**: Computes only the cardinality (size) of the intersection and the client receives it only.
+- **UPSI (Updatable Private Set Intersection)**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
+- **PSU (Private Set Union)**: It computes the union of both datasets securely and the server receives it.
+- **PSU-CARD**: Computes the size of the set union and the server receives it only.
+- **UPSU (Updatable Private Set Union)**: An updatable variant of unbalanced PSU protocol.
 
 These protocols rely heavily on two critical cryptographic dependencies:
 - **OMap (Oblivious Map)**: Prevents access pattern leakage by utilizing the EnigMap data structure. Repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
@@ -35,7 +35,7 @@ Explore the dedicated READMEs for each sub-application for deeper technical insi
 .
 ├── BLAKE3/              # Fast cryptographic hash function source code
 ├── applications/        # SGX Enclave Applications (PSI, PSU, Benchmarks)
-│   ├── benchmark/       # Primary application for the AE workflow ([README](applications/benchmark/README.md))
+│   ├── benchmark/       # Primary application for benchmarking ([README](applications/benchmark/README.md))
 │   ├── omap/            # Core oMap functionality testing ([README](applications/omap/README.md))
 │   ├── psi/             # Standard Private Set Intersection ([README](applications/psi/README.md))
 │   ├── psi_card/        # PSI Cardinality ([README](applications/psi_card/README.md))
@@ -52,11 +52,11 @@ Explore the dedicated READMEs for each sub-application for deeper technical insi
 
 ---
 
-## NDSS Artifact Evaluation Workflow (Split-Terminal)
+## Building and Execution Workflow
 
-To evaluate the artifact, we employ a split-terminal strategy. Reviewers will use one terminal to act as the SGX Host (Server), and a second terminal to act as the querying Client.
+To run the protocols, you will need to execute the server and the client on two different machines (or two different terminals on the same machine). 
 
-### Step 1: Building and Running the Docker Container
+### Step 1: Building and Running the Docker Container (On Both Machines)
 First, build and enter the isolated Docker environment which contains all the necessary dependencies (CMake, Ninja, Intel SGX SDK).
 
 ```bash
@@ -67,8 +67,8 @@ docker build -t cppbuilder:latest ./tools/docker/cppbuilder
 docker run -it --rm --name psi_eval -p 8080:8080 -v $PWD:/builder -u $(id -u) cppbuilder
 ```
 
-### Step 2: Launching the SGX Server (Terminal 1)
-Inside the container, navigate to the benchmark application directory and use the automated build script to compile the enclave and start the server host.
+### Step 2: Launching the SGX Server (Machine 1)
+Inside the container on the Server Node, navigate to the benchmark application directory and use the automated build script to compile the enclave and start the server host.
 
 ```bash
 cd applications/benchmark/
@@ -76,15 +76,12 @@ cd applications/benchmark/
 ```
 
 Once executed, the server will successfully build the enclave and present an **interactive menu**. 
-Enter the number corresponding to the protocol you wish to benchmark (e.g., `1` for standard PSI). The server will then generate the RSA keys, initialize the Oblivious Map in the enclave, and state that it is listening on port 8080.
+Enter the number corresponding to the protocol you wish to benchmark (e.g., `1` for standard PSI). Following this, you will be prompted to enter the server set size as a power of 2 (e.g., `24` for $2^{24}$). The server will then generate the RSA keys, initialize the Oblivious Map in the enclave, and state that it is listening on port 8080.
 
-### Step 3: Compiling and Running the Client (Terminal 2)
-Leave Terminal 1 running. Open a *new* terminal on your host machine, and enter the active Docker container.
+### Step 3: Compiling and Running the Client (Machine 2)
+Inside the container on the Client Node, navigate to the benchmark application directory to compile and run the client. *Ensure you modify the `SERVER_IP` in `client.cpp` if running across a network.*
 
 ```bash
-# Enter the running container
-docker exec -it psi_eval /bin/bash
-
 # Navigate to the benchmark application
 cd applications/benchmark/
 
@@ -98,25 +95,28 @@ make client
 The client will present a matching interactive menu. **Select the identical protocol number** that you chose in Step 2. The client will connect to the server, exchange ciphertexts, and complete the protocol execution.
 
 ### Step 4: Interpreting the Metrics
-Once the protocol finishes, the client will terminate and print the final metrics directly to your console (Terminal 2).
+Once the protocol finishes, the client will terminate and print the final metrics directly to your console.
 
-Reviewers should look for the following exact phrases in the standard output to verify the performance claims presented in the paper:
+Users should look for the following output to verify performance:
 - **`Online time taken: [X.X] s`**
 - **`Total time taken: [X.X] s`**
 - **`Total communication size: [X.X] KB`**
-
-These metrics correspond directly to the execution time and total communication bounds evaluated in our experimental results.
 
 ---
 
 ## Advanced Configuration
 
-If you wish to run the artifact on a high-performance machine or explore larger dataset boundaries, you can modify the core execution variables located inside the `algo_runner.sh` script for each application.
+If you wish to run the repository on a high-performance machine or explore larger dataset boundaries, you can modify the core execution variables located inside the `algo_runner.sh` script for each application.
 
 ### Changing SGX Modes (HW vs SIM)
-By default, the artifact runs in Simulation Mode (`SIM`). If you have compatible Intel hardware and the SGX drivers installed, you can switch to Hardware Mode:
+By default, the repository runs in Simulation Mode (`SIM`). If you have compatible Intel hardware and the SGX drivers installed, you can switch to Hardware Mode:
 1. Open `algo_runner.sh`.
 2. Change `SGX_MODE=SIM` to `SGX_MODE=HW`.
+
+### Changing Dataset Sizes
+By default, the experiments use synthetically generated sets of fixed sizes. If you wish to change the size of the evaluated datasets, you can do so by manipulating the variables directly in the source code:
+- **Client Set Size**: Open `client.cpp` in the respective application's directory and modify the `client_set` variable (which defines the client's input array).
+- **Server Set Size**: Open `App/TrustedLibrary/Libcxx.cpp` in the respective application's directory and modify the `server_set` variable.
 
 ### Disk I/O Settings
 The `DISK_IO` parameter dictates whether the Oblivious Map aggressively swaps memory to the external disk to circumvent enclave memory limits.
@@ -133,3 +133,23 @@ The current configuration optimizes memory footprints based on the standard prot
 > [!TIP]
 > **Backend Size Logic:**
 > When calculating the required backend storage for custom element sizes, you can take a **conservative approach of 64 bytes per element**. Therefore, if you are computing an intersection for $N$ custom elements, you should configure the `BackendSize` variable to accommodate at least $N \times 64$ bytes of storage. This buffer safely accounts for metadata and cipher overhead.
+
+## Experimental Results
+
+Below are the benchmark results of the different protocols (PSI, PSI Cardinality, PSI Update, PSU, PSU Cardinality, PSU Update) evaluated across varying Server Set Sizes ($2^{24}$, $2^{26}$, $2^{28}$) and Client Set Sizes ($2^{8}$, $2^{9}$, $2^{10}$). 
+
+For reference, these experiments were run on the following hardware:
+- **Server Node:** Intel(R) Core(TM) i9-14900K Processor with 128 GB RAM.
+- **Client Node:** AMD Ryzen 7 4800H Processor with 16GB RAM.
+
+### Online Total Time
+The following graphs illustrate the Online Total Time (in milliseconds) for each protocol across the different Server Set Sizes.
+
+![Online Time (Server Size 2^24)](./perf_plots/online_time_224.png)
+![Online Time (Server Size 2^26)](./perf_plots/online_time_226.png)
+![Online Time (Server Size 2^28)](./perf_plots/online_time_228.png)
+
+### Communication Data Size
+The communication data size (in KB) relies purely on the Client Set Size and the underlying protocol semantics (independent of the Server Set Size). 
+
+![Communication Data Size](./perf_plots/comm_size.png)

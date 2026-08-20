@@ -203,8 +203,13 @@ void ActualMain(void) {
 
     // std::vector<uint64_t> server_set = generateDistinctRandom(1<<30);
 
+    int server_power;
+    std::cout << "Enter the server set size (as a power of 2, e.g., 24 for 2^24): ";
+    std::cin >> server_power;
+
     std::vector<uint64_t> server_set;
-    for(int i=0; i<(1<<5); ++i){
+    uint64_t num_elements = 1ULL << server_power;
+    for(uint64_t i=0; i<num_elements; ++i){
         server_set.push_back(i);
     }
     // std::vector<uint64_t> server_set = {10,30,50,90};
