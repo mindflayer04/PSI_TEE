@@ -1,0 +1,156 @@
+% Artifact Appendix template for the NDSS Artifact Evaluation
+% version 1.1 (20250525)
+
+% remove the following block when merging the appendix with the camera-ready full paper
+%%%
+\documentclass[conference]{IEEEtran}
+\pagestyle{plain}
+\usepackage{url}
+\begin{document}
+%%%
+
+\appendices
+\section{Artifact Appendix}
+\subsection{Abstract}
+This artifact appendix provides a self-contained roadmap for configuring, executing, and evaluating the Private Set Intersection (PSI) and Private Set Union (PSU) protocols evaluated in our paper "Doubly-efficient Unbalanced  PSI and PSU from Trusted Hardware with Offline Pre-processing". The artifact encapsulates the complete C++ implementation, leveraging Intel Software Guard Extensions (SGX) for trusted execution and Oblivious Maps (oMaps) for secure storage. 
+
+To ensure maximum reproducibility and ease of deployment for evaluators, we provide a fully containerized Docker environment that abstracts away underlying software dependencies. This document outlines the necessary hardware and software prerequisites, guides the evaluator through building and running the Docker container, and details the execution of a unified benchmark application. This benchmark allows reviewers to functionally test all six protocol variants (Standard, Cardinality, and Updatable for both PSI and PSU) on synthetic datasets and directly verify the core performance claims regarding online execution time and total communication size presented in our research.
+
+\subsection{Description \& Requirements}
+ We provide a unified benchmark application to test all six variants of our protocols using fixed-size synthetic datasets, avoiding hardware constraints that could otherwise hinder evaluation on standard reviewer machines.
+
+\subsubsection{How to access}
+The artifact is provided as a self-contained repository containing the source code for the PSI and PSU protocols, the Oblivious Map (oMap) library, and the Docker environment files. The codebase is entirely self-sufficient to be built and evaluated offline using the provided Docker toolchain.
+
+\subsubsection{Hardware dependencies}
+By default, the artifact is configured to run in SGX Simulation Mode (\texttt{SGX\_MODE=SIM}) to ensure maximum compatibility across standard x86-64 hardware. 
+
+If reviewers wish to run the artifact in Hardware Mode (\texttt{SGX\_MODE=HW}), a machine with a compatible Intel processor supporting Intel Software Guard Extensions (SGX) is required. For context, our paper's evaluations were conducted using the following hardware:
+\begin{itemize}
+    \item \textbf{Server Node:} Intel(R) Core(TM) i9-14900K Processor with 128 GB RAM.
+    \item \textbf{Client Node:} AMD Ryzen 7 4800H Processor with 16GB RAM.
+\end{itemize}
+
+\subsubsection{Software dependencies}
+The primary software dependency is \textbf{Docker}, which is used to create a reproducible build environment. Our evaluation server was running Ubuntu 24.04.3 LTS, but Docker abstracts this away. The provided Dockerfile (\texttt{cppbuilder}) internally installs all other necessary dependencies, including:
+\begin{itemize}
+    \item Intel SGX SDK
+    \item CMake and GNU Make
+    \item Ninja build system
+    \item C++ compilation toolchains (e.g., GCC/G++)
+    \item OpenSSL library (for RSA encryption handling outside the enclave)
+\end{itemize}
+
+\subsubsection{Benchmarks}
+The artifact includes a primary \texttt{benchmark} application that serves as the evaluation suite for six core protocols: Standard PSI, PSI Cardinality, Updatable PSI, Standard PSU, PSU Cardinality, and Updatable PSU. 
+
+The evaluation uses \textbf{synthetic datasets} of varying sizes to simulate realistic scenarios. All elements are randomly generated from the domain $\{0, 1\}^{64}$ and then hashed to 128-bit using a cryptographic hash function (Blake3). By default, the sizes are strictly fixed within the \texttt{algo\_runner.sh} scripts to prevent Out-Of-Memory (OOM) crashes on reviewer machines with limited RAM.
+
+
+\subsection{Artifact Installation \& Configuration}
+To install and configure the artifact, reviewers must build and enter the isolated Docker environment:
+
+\begin{enumerate}
+    \item Build the Docker image:
+    \begin{verbatim}
+docker build -t cppbuilder:latest \
+  ./tools/docker/cppbuilder
+    \end{verbatim}
+    \item Run and enter the container interactively:
+    \begin{verbatim}
+docker run -it --rm --name psi_eval \
+  -p 8080:8080 -v $PWD:/builder \
+  -u $(id -u) cppbuilder
+    \end{verbatim}
+\end{enumerate}
+
+
+\subsection{Experiment Workflow}
+The experimental workflow employs a split-terminal strategy. Reviewers will use one terminal to act as the SGX Host (Server), and a second terminal to act as the querying Client.
+
+\textbf{Server (Terminal 1):} Inside the Docker container, navigate to the benchmark application and start the server host using the automated script:
+\begin{verbatim}
+cd applications/benchmark/
+./algo_runner.sh 1
+\end{verbatim}
+An interactive menu will open to select which of the 6 protocols to benchmark.
+
+\textbf{Client (Terminal 2):} Open a new terminal on the host machine, enter the active Docker container, compile, and run the client:
+\begin{verbatim}
+docker exec -it psi_eval /bin/bash
+cd applications/benchmark/
+make client
+./client
+\end{verbatim}
+An interactive menu will prompt for the selection of the exact same protocol chosen on the server. The client application will execute the protocol and print the final performance metrics to standard output. Reviewers should specifically look for:
+\begin{itemize}
+    \item \texttt{Server Preprocessing Time: [X.X] s}
+    \item \texttt{Online time taken (Online Total Time): [X.X] ms}
+    \item \texttt{Total communication size: [X.X] KB}
+\end{itemize}
+Depending on the specific protocol chosen, contextual output such as \texttt{Intersection count: [N]} or \texttt{Union size: [N]} will also be logged.
+
+
+\subsection{Major Claims}
+% Left empty as requested
+
+\subsection{Evaluation}
+This section details the operational steps to evaluate the artifact's functionality and reproduce the performance numbers. The evaluation revolves around a single benchmark application executed across distinct experiments. Ensure that you configure the artifact to run in Hardware Mode (\texttt{SGX\_MODE=HW}) before executing experiments E1 to E3, as these results specifically reflect HW Mode performance.
+
+Across these initial experiments, the \textbf{Server set size} scales across $2^{24}$, $2^{26}$, and $2^{28}$ elements. For each server set size, the \textbf{Client set size} is varied across $2^{8}$, $2^{9}$, and $2^{10}$ elements. For each experiment, the evaluator will serially test all six protocol variants using the interactive menu and log the performance outputs.
+
+\subsubsection{Experiment (E1): [Protocol Evaluation for Server Set Size $2^{24}$ in HW Mode]}
+[within 25 minutes]: By executing the benchmark, you can obtain the \textbf{Server Preprocessing Time}, \textbf{online running time}, and \textbf{total communication cost} for all 6 protocol variants across client sizes $2^8$, $2^9$, and $2^{10}$. Given that different CPUs may lead to varying performance, we consider some variance in running time to be reasonable. However, the \textbf{communication size should remain exact without deviation}.
+
+\textit{[How to]:} You can directly run our benchmark suite, making sure to choose the matching protocol on both ends.
+
+\textit{[Preparation]:} Make sure that you are currently in the \texttt{applications/benchmark/} directory inside the Docker container. Ensure that the server set size configuration is set to $2^{24}$ and vary the client set size through $2^8, 2^9, 2^{10}$.
+
+\textit{[Execution]:} Directly execute the following commands in two separate terminals:
+Server: \texttt{./algo\_runner.sh 1} (select protocol from menu)
+Client: \texttt{make client \&\& ./client} (select same protocol)
+
+\textit{[Results]:} Check the outputs for \textbf{\texttt{Server Preprocessing Time}}, \textbf{\texttt{Online time taken}} and \textbf{\texttt{Total communication size}}. Evaluators will observe that preprocessing time is roughly $75$ seconds, online time scales from $\sim 115$ ms to $\sim 446$ ms, and communication size scales from $\sim 64$ KB to $\sim 256$ KB depending on the protocol and client size.
+
+\subsubsection{Experiment (E2): [Protocol Evaluation for Server Set Size $2^{26}$ in HW Mode]}
+[within 60 minutes]: By executing the benchmark for a larger server set size of $2^{26}$, you can obtain the scaling metrics. 
+
+\textit{[How to]:} The same as E(1).
+
+\textit{[Preparation]:} The same as E(1), but ensure the server set size configuration is set to $2^{26}$.
+
+\textit{[Execution]:} Directly execute the following commands in two separate terminals:
+Server: \texttt{./algo\_runner.sh 1} 
+Client: \texttt{./client} 
+
+\textit{[Results]:} Check the outputs for \textbf{\texttt{Server Preprocessing Time}}, \textbf{\texttt{Online time taken}} and \textbf{\texttt{Total communication size}}. Evaluators will observe preprocessing time is roughly $366$ seconds, while online and communication costs remain similar to E(1).
+
+\subsubsection{Experiment (E3): [Protocol Evaluation for Server Set Size $2^{28}$ in HW Mode]}
+[within 120 minutes]: By executing the benchmark for our largest evaluated server set size of $2^{28}$, you can obtain the final scaling metrics. 
+
+\textit{[How to]:} The same as E(1).
+
+\textit{[Preparation]:} The same as E(1), but ensure the server set size configuration is set to $2^{28}$. Ensure \texttt{MIN\_ENCLAVE\_SIZE} and \texttt{MAX\_ENCLAVE\_SIZE} in \texttt{algo\_runner.sh} are increased accordingly.
+
+\textit{[Execution]:} Directly execute the following commands in two separate terminals:
+Server: \texttt{./algo\_runner.sh 1} 
+Client: \texttt{./client} 
+
+\textit{[Results]:} Check the outputs for \textbf{\texttt{Server Preprocessing Time}}, \textbf{\texttt{Online time taken}} and \textbf{\texttt{Total communication size}}. Evaluators will observe preprocessing time is roughly $1845$ seconds, with online and communication costs largely independent of the server set size.
+
+
+\subsection{Customization}
+The artifact supports several advanced configurations to test different hardware capabilities or dataset boundaries. These can be customized by modifying the \texttt{algo\_runner.sh} script within the application directories:
+
+\begin{itemize}
+    \item \textbf{SGX Modes}: Change \texttt{SGX\_MODE=SIM} to \texttt{SGX\_MODE=HW} to utilize actual Intel SGX hardware.
+    \item \textbf{Disk I/O Settings}: The \texttt{DISK\_IO} parameter controls whether the Oblivious Map aggressively swaps memory to the external disk. Setting \texttt{DISK\_IO=0} keeps all data strictly in enclave RAM, while \texttt{DISK\_IO=1} enables external disk swapping.
+    \item \textbf{Enclave RAM Size}: Modify the \texttt{MIN\_ENCLAVE\_SIZE} and \texttt{MAX\_ENCLAVE\_SIZE} bounds to dynamically allocate more Heap Size to the enclave for larger datasets.
+    \item \textbf{Server Backend Size}: To run the application with larger cryptographic payloads or keys, the server's backend storage size must be increased. This is done by modifying the \texttt{size\_t BackendSize} variable located in the \texttt{Enclave/TrustedLibrary/omap\_test.cpp} file of the respective application directory (recommending $N \times 64$ bytes of storage for $N$ custom elements).
+\end{itemize}
+
+
+% remove the following block when merging the appendix with the camera-ready full paper
+%%%
+\end{document}
+%%%
