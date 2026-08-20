@@ -1,7 +1,7 @@
-# Private Set Union - Cardinality (PSU-Card)
+# Unbalanced Private Set Union Cardinality (PSU-CA)
 
 ## Overview
-This repository implements a variation of Unbalnced Private Set Union protocol known as PSU Cardinality (PSU-CA). It computes the union between the client and the server, but the server only learns the *total number of unique elements* (the cardinality of the union), rather than the elements themselves.
+This repository implements a variant of Unbalnced Private Set Union protocol known as PSU Cardinality (PSU-CA). It computes the union between the client and the server, but the server only learns the *total number of unique elements* (the cardinality of the union), rather than the elements themselves.
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Relays the batch queries to the enclave and transmits the final scalar union size back to the client over TCP.
