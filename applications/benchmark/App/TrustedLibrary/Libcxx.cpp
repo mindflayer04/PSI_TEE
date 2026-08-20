@@ -201,7 +201,7 @@ void ActualMain(void) {
     sgx_status_t status = SGX_SUCCESS;
     sgx_status_t ecall_status;
 
-    // std::vector<uint64_t> server_set = generateDistinctRandom(1<<30);
+    // std::vector<uint64_t> server_set = generateDistinctRandom(1<<28);
 
     int server_power;
     std::cout << "Enter the server set size (as a power of 2, e.g., 24 for 2^24): ";
@@ -212,9 +212,10 @@ void ActualMain(void) {
     for(uint64_t i=0; i<num_elements; ++i){
         server_set.push_back(i);
     }
-    // std::vector<uint64_t> server_set = {10,30,50,90};
 
     std::vector<__uint128_t> hashed_set;
+    // Reserve extra capacity to avoid expensive reallocations during PSU Update runs
+    hashed_set.reserve((1<<30) + (1<<24)); // Extra 16M capacity
 
     for(const auto& val : server_set){
         hashed_set.push_back(hash(std::to_string(val)));
@@ -355,6 +356,36 @@ void ActualMain(void) {
             case 6: protocol_name = "PSU Update"; break;
             default: protocol_name = "Unknown Protocol"; break;
         }
+
+        if (choice == 3 || choice == 6) {
+            std::cout << "\n[Host] Executing offline server updates before client connects..." << std::endl;
+            std::vector<__uint128_t> insert_elements(64);
+            for (int i = 0; i < 64; i++) {
+                insert_elements[i] = hash("dummy" + std::to_string(i));
+            }
+
+            sgx_status_t op_status;
+            auto benchmark_ins_start = std::chrono::high_resolution_clock::now();
+            ecall_insert_batch(global_eid, &op_status, insert_elements.data(), insert_elements.size());
+            auto benchmark_ins_end = std::chrono::high_resolution_clock::now();
+            
+            double total_ins_time = std::chrono::duration_cast<std::chrono::microseconds>(benchmark_ins_end - benchmark_ins_start).count() / 1000.0;
+            double avg_ins_time = total_ins_time / 64.0;
+            std::cout << "[Host] Total insertion timings: " << total_ins_time << " ms" << std::endl;
+            std::cout << "[Host] Insertion timings per element: " << avg_ins_time << " ms/element" << std::endl;
+
+            if (choice == 3) {
+                auto benchmark_del_start = std::chrono::high_resolution_clock::now();
+                ecall_delete_batch(global_eid, &op_status, insert_elements.data(), insert_elements.size());
+                auto benchmark_del_end = std::chrono::high_resolution_clock::now();
+                
+                double total_del_time = std::chrono::duration_cast<std::chrono::microseconds>(benchmark_del_end - benchmark_del_start).count() / 1000.0;
+                double avg_del_time = total_del_time / 64.0;
+                std::cout << "[Host] Total deletion timings: " << total_del_time << " ms" << std::endl;
+                std::cout << "[Host] Deletion timings per element: " << avg_del_time << " ms/element" << std::endl;
+            }
+        }
+
         std::cout << "[Host] Protocol selected: " << protocol_name << ". Waiting for a client to connect..." << std::endl;
 
         if ((client_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
@@ -453,23 +484,28 @@ void ActualMain(void) {
                                 union_size++;
                             }
                         }
-                        net_union_size = htonl(union_size);
-                        send_data = &net_union_size;
-                        send_size = sizeof(net_union_size);
+                        if (choice == 5) {
+                            net_union_size = htonl(union_size);
+                            send_data = &net_union_size;
+                            send_size = sizeof(net_union_size);
+                        }
                     } else if (choice == 6) {
                         // PSU Update
                         uint32_t union_size = hashed_set.size(); 
+                        std::vector<__uint128_t> batch_inserts;
+                        batch_inserts.reserve(set_size);
                         for (uint32_t i = 0; i < set_size; i++) {
                             if (found_array[i]) {
                                 union_size++;
                                 hashed_set.push_back(value_out_array[i]);
-                                // insert into enclave OMAP
-                                ecall_insert_element(global_eid, &op_status, value_out_array[i]);
+                                batch_inserts.push_back(value_out_array[i]);
                             }
                         }
-                        net_union_size = htonl(union_size);
-                        send_data = &net_union_size;
-                        send_size = sizeof(net_union_size);
+                        if (!batch_inserts.empty()) {
+                            // insert all new elements into enclave OMAP as a batch
+                            ecall_insert_batch(global_eid, &op_status, batch_inserts.data(), batch_inserts.size());
+                        }
+                        // Do not send union_size for PSU Update
                     }
 
                     auto comp_end = std::chrono::high_resolution_clock::now();

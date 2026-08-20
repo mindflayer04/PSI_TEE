@@ -151,6 +151,15 @@ __uint128_t hash(const std::string& str) {
 
 
 int main(){
+     std::vector<uint64_t> client_set = {10,30,50,100};
+    uint32_t set_size = client_set.size();
+
+    std::vector<__uint128_t> hashed_set;
+    for(const auto& val : client_set){
+        hashed_set.push_back(hash(std::to_string(val)));
+    }
+
+    
     int choice = 0;
     std::cout << "\nSelect Protocol to Benchmark:\n"
               << "0. Exit\n"
@@ -202,16 +211,7 @@ int main(){
     total_comm_bytes += total_key_read;
     std::cout << "Public key received successfully." << std::endl;
 
-    std::vector<uint64_t> client_set;
-    for(uint64_t i=0; i<(1<<8); i++){
-        client_set.push_back((1<<24) + i);
-    }
-    uint32_t set_size = client_set.size();
 
-    std::vector<__uint128_t> hashed_set;
-    for(const auto& val : client_set){
-        hashed_set.push_back(hash(std::to_string(val)));
-    }
 
     uint32_t net_set_size = htonl(set_size);
 
@@ -298,7 +298,7 @@ int main(){
         } else {
             std::cerr << "Failed to read intersection count from server." << std::endl;
         }
-    } else if (choice >= 4 && choice <= 6) {
+    } else if (choice == 5) {
         uint32_t net_union_size = 0;
         int size_read = read(sock, &net_union_size, sizeof(net_union_size));
         if (size_read > 0) total_comm_bytes += size_read;
@@ -313,6 +313,17 @@ int main(){
         } else {
             std::cerr << "Failed to read union size from server." << std::endl;
         }
+    } else if (choice == 4 || choice == 6) {
+        // PSU and PSU Update do not return a value. 
+        // We read a dummy byte to wait for the server to finish and close the socket.
+        char dummy;
+        int size_read = read(sock, &dummy, 1);
+        if (size_read > 0) total_comm_bytes += size_read;
+        
+        auto end_online = std::chrono::high_resolution_clock::now();
+        auto duration_online = std::chrono::duration_cast<std::chrono::microseconds>(end_online - start_online);
+        std::cout << "Online time taken: " << duration_online.count()*(1e-6) << " s" << std::endl;
+        std::cout << "PSU protocol completed successfully." << std::endl;
     }
 
     close(sock);

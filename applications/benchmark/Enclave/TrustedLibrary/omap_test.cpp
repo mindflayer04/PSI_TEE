@@ -22,7 +22,7 @@
 #define MB << 20
 #define RSA_2048_SIZE 256
 #define RSA_2048_HALF 128
-#define GLOBAL_BATCH_SIZE 500000
+#define GLOBAL_BATCH_SIZE 1000000
 
 #define ASSERT_TRUE(expr)                           \
   if (!expr) {                                      \
@@ -286,7 +286,9 @@ void createMap(const __uint128_t* input_set, size_t set_size){
   // int threadCount = omp_get_max_threads();
   int threadCount = 32; 
   g_globalMap = new ParOMap<__uint128_t,int64_t, uint32_t>(mapCapacity, threadCount);
-  g_globalMap->Init();
+  // Limit the cache size to 150 GB to maximize performance while staying under 190GB HeapMaxSize
+  uint64_t cacheSize = 150ULL * 1024 * 1024 * 1024; // 150 GB
+  g_globalMap->Init(cacheSize);
 
   EM::NonCachedVector::Vector<__uint128_t>::Reader reader(myvec.begin(), myvec.end(), /*inAuth=*/1);
 
@@ -321,7 +323,7 @@ sgx_status_t ecall_createMap(const __uint128_t* input_set, size_t set_size){
   if (EM::Backend::g_DefaultBackend) {
     delete EM::Backend::g_DefaultBackend;
   }
-  size_t BackendSize = 1e10;
+  size_t BackendSize = 2e12; // 1.5 TB
   EM::Backend::g_DefaultBackend =
       new EM::Backend::MemServerBackend(BackendSize);
   try {
@@ -429,4 +431,53 @@ sgx_status_t ecall_delete_element(__uint128_t element){
   std::vector<__uint128_t> keys = {element};
   g_globalMap->EraseBatch(keys.begin(), keys.end());
   return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_insert_batch(const __uint128_t* elements, uint32_t num_elements) {
+    std::vector<__uint128_t> keys(elements, elements + num_elements);
+    std::vector<int64_t> vals(num_elements, 1);
+    
+    uint32_t batchSize = GLOBAL_BATCH_SIZE;
+    for (size_t r = 0; r < num_elements / batchSize; ++r) {
+        g_globalMap->InsertBatch(
+            keys.begin() + r * batchSize, 
+            keys.begin() + (r + 1) * batchSize, 
+            vals.begin() + r * batchSize
+        );
+    }
+
+    size_t remainder = num_elements % batchSize;
+    if (remainder > 0) {
+        size_t offset = (num_elements / batchSize) * batchSize;
+        g_globalMap->InsertBatch(
+            keys.begin() + offset, 
+            keys.end(), 
+            vals.begin() + offset
+        );
+    }
+
+    return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_delete_batch(const __uint128_t* elements, uint32_t num_elements) {
+    std::vector<__uint128_t> keys(elements, elements + num_elements);
+
+    uint32_t batchSize = GLOBAL_BATCH_SIZE;
+    for (size_t r = 0; r < num_elements / batchSize; ++r) {
+        g_globalMap->EraseBatch(
+            keys.begin() + r * batchSize, 
+            keys.begin() + (r + 1) * batchSize
+        );
+    }
+
+    size_t remainder = num_elements % batchSize;
+    if (remainder > 0) {
+        size_t offset = (num_elements / batchSize) * batchSize;
+        g_globalMap->EraseBatch(
+            keys.begin() + offset, 
+            keys.end()
+        );
+    }
+
+    return SGX_SUCCESS;
 }

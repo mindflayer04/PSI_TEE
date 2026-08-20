@@ -39,6 +39,16 @@ enclave {
 
     public sgx_status_t ecall_delete_element(__uint128_t element);
 
+    public sgx_status_t ecall_insert_batch(
+      [in, count=num_elements] const __uint128_t* elements,
+      uint32_t num_elements
+    );
+
+    public sgx_status_t ecall_delete_batch(
+      [in, count=num_elements] const __uint128_t* elements,
+      uint32_t num_elements
+    );
+
     public sgx_status_t ecall_check_union(
       [in,size=sealed_size] const uint8_t* p_sealed_buffer,
       uint32_t sealed_size,
