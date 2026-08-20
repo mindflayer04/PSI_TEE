@@ -118,6 +118,11 @@ By default, the artifact runs in Simulation Mode (`SIM`). If you have compatible
 1. Open `algo_runner.sh`.
 2. Change `SGX_MODE=SIM` to `SGX_MODE=HW`.
 
+### Changing Dataset Sizes
+By default, the experiments use synthetically generated sets of fixed sizes. If you wish to change the size of the evaluated datasets, you can do so by manipulating the variables directly in the source code:
+- **Client Set Size**: Open `client.cpp` in the respective application's directory and modify the `client_set` variable (which defines the client's input array).
+- **Server Set Size**: Open `App/TrustedLibrary/Libcxx.cpp` in the respective application's directory and modify the `server_set` variable.
+
 ### Disk I/O Settings
 The `DISK_IO` parameter dictates whether the Oblivious Map aggressively swaps memory to the external disk to circumvent enclave memory limits.
 - Set `DISK_IO=0` in `algo_runner.sh` to keep all data securely inside the enclave RAM. (Provides faster performance but strictly limits maximum dataset sizes before causing OOM).
@@ -133,3 +138,19 @@ The current configuration optimizes memory footprints based on the standard prot
 > [!TIP]
 > **Backend Size Logic:**
 > When calculating the required backend storage for custom element sizes, you can take a **conservative approach of 64 bytes per element**. Therefore, if you are computing an intersection for $N$ custom elements, you should configure the `BackendSize` variable to accommodate at least $N \times 64$ bytes of storage. This buffer safely accounts for metadata and cipher overhead.
+
+## Experimental Results
+
+Below are the benchmark results of the different protocols (PSI, PSI Cardinality, PSI Update, PSU, PSU Cardinality, PSU Update) evaluated across varying Server Set Sizes ($2^{24}$, $2^{26}$, $2^{28}$) and Client Set Sizes ($2^8$, $2^9$, $2^{10}$).
+
+### Online Total Time
+The following graphs illustrate the Online Total Time (in milliseconds) for each protocol across the different Server Set Sizes.
+
+![Online Time (Server Size 2^24)](./perf_plots/online_time_224.png)
+![Online Time (Server Size 2^26)](./perf_plots/online_time_226.png)
+![Online Time (Server Size 2^28)](./perf_plots/online_time_228.png)
+
+### Communication Data Size
+The communication data size (in KB) relies purely on the Client Set Size and the underlying protocol semantics (independent of the Server Set Size). 
+
+![Communication Data Size](./perf_plots/comm_size.png)
