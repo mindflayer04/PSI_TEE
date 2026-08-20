@@ -151,7 +151,11 @@ __uint128_t hash(const std::string& str) {
 
 
 int main(){
-     std::vector<uint64_t> client_set = {10,30,50,100};
+    //  std::vector<uint64_t> client_set = {10,30,50,100};
+    std::vector<uint64_t> client_set;
+    for(uint64_t i = 1; i <= (1<<8); i++){
+        client_set.push_back(i);
+    }
     uint32_t set_size = client_set.size();
 
     std::vector<__uint128_t> hashed_set;
