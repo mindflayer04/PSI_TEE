@@ -343,3 +343,52 @@ sgx_status_t ecall_delete_element(__uint128_t element){
   g_globalMap->EraseBatch(keys.begin(), keys.end());
   return SGX_SUCCESS;
 }
+
+sgx_status_t ecall_insert_batch(const __uint128_t* elements, uint32_t num_elements) {
+    std::vector<__uint128_t> keys(elements, elements + num_elements);
+    std::vector<int64_t> vals(num_elements, 1);
+    
+    uint32_t batchSize = GLOBAL_BATCH_SIZE;
+    for (size_t r = 0; r < num_elements / batchSize; ++r) {
+        g_globalMap->InsertBatch(
+            keys.begin() + r * batchSize, 
+            keys.begin() + (r + 1) * batchSize, 
+            vals.begin() + r * batchSize
+        );
+    }
+
+    size_t remainder = num_elements % batchSize;
+    if (remainder > 0) {
+        size_t offset = (num_elements / batchSize) * batchSize;
+        g_globalMap->InsertBatch(
+            keys.begin() + offset, 
+            keys.end(), 
+            vals.begin() + offset
+        );
+    }
+
+    return SGX_SUCCESS;
+}
+
+sgx_status_t ecall_delete_batch(const __uint128_t* elements, uint32_t num_elements) {
+    std::vector<__uint128_t> keys(elements, elements + num_elements);
+
+    uint32_t batchSize = GLOBAL_BATCH_SIZE;
+    for (size_t r = 0; r < num_elements / batchSize; ++r) {
+        g_globalMap->EraseBatch(
+            keys.begin() + r * batchSize, 
+            keys.begin() + (r + 1) * batchSize
+        );
+    }
+
+    size_t remainder = num_elements % batchSize;
+    if (remainder > 0) {
+        size_t offset = (num_elements / batchSize) * batchSize;
+        g_globalMap->EraseBatch(
+            keys.begin() + offset, 
+            keys.end()
+        );
+    }
+
+    return SGX_SUCCESS;
+}

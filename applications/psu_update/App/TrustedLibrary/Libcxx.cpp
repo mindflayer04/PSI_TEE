@@ -246,6 +246,23 @@ void ActualMain(void) {
     else{
         std::cerr << "[Host] Failed to create map in enclave. Error: " << std::hex << ret << " " << std::hex << map_status << std::endl;
     }
+    std::cout << "
+[Host] Executing offline server updates before client connects..." << std::endl;
+    std::vector<__uint128_t> insert_elements(64);
+    for (int i = 0; i < 64; i++) {
+        insert_elements[i] = hash("dummy" + std::to_string(i));
+    }
+
+    sgx_status_t op_status;
+    auto benchmark_ins_start = std::chrono::high_resolution_clock::now();
+    ecall_insert_batch(global_eid, &op_status, insert_elements.data(), insert_elements.size());
+    auto benchmark_ins_end = std::chrono::high_resolution_clock::now();
+    
+    double total_ins_time = std::chrono::duration_cast<std::chrono::microseconds>(benchmark_ins_end - benchmark_ins_start).count() / 1000.0;
+    double avg_ins_time = total_ins_time / 64.0;
+    std::cout << "[Host] Total insertion timings: " << total_ins_time << " ms" << std::endl;
+    std::cout << "[Host] Insertion timings per element: " << avg_ins_time << " ms/element" << std::endl;
+
 
     // Encryption-Decryption Sanity Check
     // std::vector<uint8_t> plaintext(32, 0);

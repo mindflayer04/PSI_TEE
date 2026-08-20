@@ -5,7 +5,7 @@ This repository implements the **one sided** Unbalanced Updatable PSI protocol. 
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Relays the standard batch ciphertexts and then subsequently relays the encrypted update payloads.
-- **Trusted Enclave (`Enclave/`)**: Executes the standard intersection check and then processes the update payload by directly invoking `ecall_insert_element` to insert new elements into the `omap`.
+- **Trusted Enclave (`Enclave/`)**: Executes the standard intersection check and processes offline updates by invoking `ecall_insert_batch` and `ecall_delete_batch` to securely modify the `omap`.
 
 ## Protocol Details
 
@@ -24,8 +24,8 @@ The online query phase remains exactly the same as the standard PSI protocol:
 4. The client decrypts the result to determine if each item was in the intersection.
 
 ## Default Update Configuration
-By default, the server explicitly inserts new elements into its dataset during the update phase. The default configuration initializes an initial server set of size $2^{24}$ (elements $0$ to $2^{24}-1$) and an update set of size $2^8$. These $2^8$ new elements are generated to be completely unique (i.e., starting from $2^{24}$ onwards) so that they trigger fresh insertions into the OMap.
-- To change these elements, open `App/TrustedLibrary/Libcxx.cpp` and modify the loop responsible for generating the `new_elements` vector.
+Before listening for client connections, the server executes an offline update phase where it explicitly batch inserts and deletes elements to simulate dynamic dataset changes. By default, it generates a batch of 64 dummy elements (`"dummy0"` to `"dummy63"`) and profiles the insertion and deletion timings. 
+- To modify the number of elements updated, or to use real elements, open `App/TrustedLibrary/Libcxx.cpp` and adjust the `insert_elements` vector and loops before the network connection code.
 
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:

@@ -247,25 +247,34 @@ void ActualMain(void) {
         std::cerr << "[Host] Failed to create map in enclave. Error: " << std::hex << ret << " " << std::hex << map_status << std::endl;
     }
 
-    std::vector<uint64_t> new_elements = {60, 70, 80, 90, 100};
-    std::cout << "[Host] Inserting new elements into the OMAP..." << std::endl;
-    auto insert_start = std::chrono::high_resolution_clock::now();
-
-    for (const auto& val : new_elements) {
-        __uint128_t hashed_val = hash(std::to_string(val));
-        sgx_status_t insert_status;
-        status = ecall_insert_element(global_eid, &insert_status, hashed_val);
-        if (status != SGX_SUCCESS || insert_status != SGX_SUCCESS) {
-            std::cerr << "[Host] Failed to insert element " << val << " into the OMAP." << std::endl;
-        } else {
-            std::cout << "[Host] Element " << val << " inserted successfully." << std::endl;
-        }
+    
+    std::cout << "
+[Host] Executing offline server updates before client connects..." << std::endl;
+    std::vector<__uint128_t> insert_elements(64);
+    for (int i = 0; i < 64; i++) {
+        insert_elements[i] = hash("dummy" + std::to_string(i));
     }
 
-    auto insert_end = std::chrono::high_resolution_clock::now();
-    auto insert_duration = std::chrono::duration_cast<std::chrono::microseconds>(insert_end - insert_start);
-    std::cout << "[Host] Time taken to insert " << new_elements.size() << " elements: " 
-              << insert_duration.count() * 1e-6 << " seconds." << std::endl;
+    sgx_status_t op_status;
+    auto benchmark_ins_start = std::chrono::high_resolution_clock::now();
+    ecall_insert_batch(global_eid, &op_status, insert_elements.data(), insert_elements.size());
+    auto benchmark_ins_end = std::chrono::high_resolution_clock::now();
+    
+    double total_ins_time = std::chrono::duration_cast<std::chrono::microseconds>(benchmark_ins_end - benchmark_ins_start).count() / 1000.0;
+    double avg_ins_time = total_ins_time / 64.0;
+    std::cout << "[Host] Total insertion timings: " << total_ins_time << " ms" << std::endl;
+    std::cout << "[Host] Insertion timings per element: " << avg_ins_time << " ms/element" << std::endl;
+
+
+    auto benchmark_del_start = std::chrono::high_resolution_clock::now();
+    ecall_delete_batch(global_eid, &op_status, insert_elements.data(), insert_elements.size());
+    auto benchmark_del_end = std::chrono::high_resolution_clock::now();
+    
+    double total_del_time = std::chrono::duration_cast<std::chrono::microseconds>(benchmark_del_end - benchmark_del_start).count() / 1000.0;
+    double avg_del_time = total_del_time / 64.0;
+    std::cout << "[Host] Total deletion timings: " << total_del_time << " ms" << std::endl;
+    std::cout << "[Host] Deletion timings per element: " << avg_del_time << " ms/element" << std::endl;
+
 
     // Encryption-Decryption Sanity Check
     // std::vector<uint8_t> plaintext(32, 0);

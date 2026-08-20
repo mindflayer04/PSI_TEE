@@ -64,7 +64,7 @@ First, build and enter the isolated Docker environment which contains all the ne
 docker build -t cppbuilder:latest ./tools/docker/cppbuilder
 
 # Run and enter the container interactively
-docker run -it --rm --name psi_eval -p 8080:8080 -v $PWD:/builder -u $(id -u) cppbuilder
+docker run -v /tmp/omapbackend:/ssdmount --privileged -it --rm -v $PWD:/builder -p 8080:8080 cppbuilder
 ```
 
 ### Step 2: Launching the SGX Server (Machine 1)

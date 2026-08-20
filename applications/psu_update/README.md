@@ -5,7 +5,7 @@ This repository implements the Updatable PSU  protocol, where only the server ca
 
 ## Architecture
 - **Untrusted Host (`App/`)**: Relays the standard batch ciphertexts for the union computation and subsequently forwards the encrypted payload of new elements to be inserted.
-- **Trusted Enclave (`Enclave/`)**: Executes the union computation and directly calls `ecall_insert_element` to insert the new client-provided elements into the secure Oblivious Map.
+- **Trusted Enclave (`Enclave/`)**: Processes offline updates via `ecall_insert_batch` and executes the online union computation, which seamlessly inserts new unique client elements into the secure Oblivious Map.
 
 ## Protocol Details
 
@@ -22,8 +22,9 @@ After updates are finished, the online phase works exactly the same as the stand
 2. The enclave safely merges them by checking for their existence in the secure tree and adding them if they are unique, forming a new combined list. At the end, the server receives the desired result only.
 
 ## Default Update Configuration
-By default, the server's dataset is updated with new elements dynamically during the online union computation. The default configuration initializes a server set of size $2^{24}$ (elements $0$ to $2^{24}-1$) and a client set of size $2^8$. Because the $2^8$ elements sent by the client are generated to be strictly unique (e.g., starting from $2^{24}$ onwards), they are explicitly inserted into the server's OMap during the union by default.
-- To change the elements being inserted during the union, you can modify the `client_set` loop in `client.cpp` to introduce different unique items, or modify the initial `server_set` generation in `App/TrustedLibrary/Libcxx.cpp`.
+Before listening for client connections, the server executes an offline update phase where it explicitly batch inserts elements to simulate dynamic dataset growth. By default, it generates a batch of 64 dummy elements (`"dummy0"` to `"dummy63"`) and profiles the insertion timings. 
+During the online phase, the server also updates the dataset dynamically with any new unique elements provided by the client.
+- To change the offline elements being inserted, modify the `insert_elements` vector in `App/TrustedLibrary/Libcxx.cpp`. To change the online updates, modify the `client_set` loop in `client.cpp`.
 
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:

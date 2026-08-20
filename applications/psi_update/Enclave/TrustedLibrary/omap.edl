@@ -9,6 +9,17 @@ enclave {
 
     public sgx_status_t ecall_delete_element(__uint128_t element);
 
+    public sgx_status_t ecall_insert_batch(
+      [in, count=num_elements] const __uint128_t* elements,
+      uint32_t num_elements
+    );
+
+    public sgx_status_t ecall_delete_batch(
+      [in, count=num_elements] const __uint128_t* elements,
+      uint32_t num_elements
+    );
+
+
     public uint32_t ecall_get_rsa_sealed_size();
 
     public sgx_status_t ecall_generate_rsa_key(
