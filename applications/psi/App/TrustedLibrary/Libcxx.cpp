@@ -212,6 +212,8 @@ void ActualMain(void) {
     
     // std::vector<uint64_t> server_set = {10,30,50,90};
     std::vector<__uint128_t> hashed_set;
+    // Reserve extra capacity to avoid expensive reallocations during PSU Update runs
+    hashed_set.reserve((1<<30) + (1<<24)); // Extra 16M capacity
 
     for(const auto& val : server_set){
         hashed_set.push_back(hash(std::to_string(val)));
