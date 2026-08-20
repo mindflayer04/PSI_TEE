@@ -21,6 +21,10 @@ After updates are finished, the online phase works exactly the same as the stand
 1. The client sends its encrypted items to the server.
 2. The enclave safely merges them by checking for their existence in the secure tree and adding them if they are unique, forming a new combined list. At the end, the server receives the desired result only.
 
+## Default Update Configuration
+By default, the server's dataset is updated with new elements dynamically during the online union computation. The default configuration initializes a server set of size $2^{24}$ (elements $0$ to $2^{24}-1$) and a client set of size $2^8$. Because the $2^8$ elements sent by the client are generated to be strictly unique (e.g., starting from $2^{24}$ onwards), they are explicitly inserted into the server's OMap during the union by default.
+- To change the elements being inserted during the union, you can modify the `client_set` loop in `client.cpp` to introduce different unique items, or modify the initial `server_set` generation in `App/TrustedLibrary/Libcxx.cpp`.
+
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:
 - **OMap (Oblivious Map)**: We utilize the EnigMap data structure for external-memory oblivious maps for secure enclaves. This prevents an adversary from inferring information by observing memory access patterns. EnigMap achieves search, insert, and delete operations in $\bar{O}(\log^2 N_{s})$ time. Original repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).

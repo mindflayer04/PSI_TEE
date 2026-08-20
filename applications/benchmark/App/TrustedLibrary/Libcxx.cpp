@@ -204,7 +204,7 @@ void ActualMain(void) {
     // std::vector<uint64_t> server_set = generateDistinctRandom(1<<30);
 
     std::vector<uint64_t> server_set;
-    for(int i=0; i<(1<<5); ++i){
+    for(uint64_t i=0; i<(1<<24); ++i){
         server_set.push_back(i);
     }
     // std::vector<uint64_t> server_set = {10,30,50,90};

@@ -23,6 +23,10 @@ The online query phase remains exactly the same as the standard PSI protocol:
 3. The result of each search is encrypted using the client's public key and sent back.
 4. The client decrypts the result to determine if each item was in the intersection.
 
+## Default Update Configuration
+By default, the server explicitly inserts new elements into its dataset during the update phase. The default configuration initializes an initial server set of size $2^{24}$ (elements $0$ to $2^{24}-1$) and an update set of size $2^8$. These $2^8$ new elements are generated to be completely unique (i.e., starting from $2^{24}$ onwards) so that they trigger fresh insertions into the OMap.
+- To change these elements, open `App/TrustedLibrary/Libcxx.cpp` and modify the loop responsible for generating the `new_elements` vector.
+
 ## Dependencies: OMap and O-Shuffle
 To ensure strict data privacy and prevent access pattern leakage, this implementation relies heavily on two critical system-level components:
 - **OMap (Oblivious Map)**: We utilize the EnigMap data structure for external-memory oblivious maps for secure enclaves. This prevents an adversary from inferring information by observing memory access patterns. EnigMap achieves search, insert, and delete operations in $\bar{O}(\log^2 N_{s})$ time. Original repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
