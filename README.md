@@ -138,9 +138,11 @@ The current configuration optimizes memory footprints based on the standard prot
 
 Below are the benchmark results of the different protocols (PSI, PSI Cardinality, PSI Update, PSU, PSU Cardinality, PSU Update) evaluated across varying Server Set Sizes ($2^{24}$, $2^{26}$, $2^{28}$) and Client Set Sizes ($2^{8}$, $2^{9}$, $2^{10}$). 
 
+Our experimental setup features a 3rd-generation Intel Ice Lake Xeon Platinum 8370C 32-core processor running at a 2.80 GHz base clock, L3 cache size of 48 MB per CPU package, 256 GB of system RAM, 2400 GB of local storage, 30 GB SSD, and 192 GB of Enclave Page Cache (EPC). The experiments consistently utilized a 3992-byte page size (padded to 4KB on disk swap). The client setup is a low-end desktop with an Intel 12th-generation i3-12100 processor running at 4.30 GHz clock speed, 8 GB of system RAM, and 12 MB of cache memory. We map all data items to a fixed 128-bit value using a predefined collision-resistant hash function (e.g., BLAKE3).
+
 For reference, these experiments were run on the following hardware:
-- **Server Node:** Intel(R) Core(TM) i9-14900K Processor with 128 GB RAM.
-- **Client Node:** AMD Ryzen 7 4800H Processor with 16GB RAM.
+- **Server Node:** Intel Ice Lake Xeon Platinum 8370C 32-core Processor (2.80 GHz base clock, 48 MB L3 cache) with 256 GB RAM, 2400 GB local storage, 30 GB SSD, and 192 GB EPC.
+- **Client Node:** Intel 12th-generation i3-12100 Processor (4.30 GHz) with 8 GB RAM and 12 MB cache.
 
 ### Online Total Time
 The following graphs illustrate the Online Total Time (in milliseconds) for each protocol across the different Server Set Sizes.
