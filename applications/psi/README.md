@@ -1,4 +1,4 @@
-# Private Set Intersection (PSI) Application
+# Unbalanced Private Set Intersection (PSI) 
 
 ## Overview
 This repository implements the Unbalanced Private Set Intersection (PSI) protocol using the underlying parallel Oblivious Map (OMap) data structure. It allows a client and a server to compute the intersection of their respective sets without revealing any elements that are not part of the intersection.
@@ -9,7 +9,7 @@ This repository implements the Unbalanced Private Set Intersection (PSI) protoco
 
 ## Protocol Details
 
-This application implements the Private Set Intersection (PSI) protocol, which allows a client and server to compute the intersection of their private datasets without revealing any additional information. The protocol follows a preprocessing based offline-online computation model to maximize efficiency for unbalanced datasets (e.g., the server's dataset is significantly larger than the client).
+This repository implements the Unbalanced Private Set Intersection (PSI) protocol, which allows a client and server to compute the intersection of their private datasets without revealing any additional information. The protocol follows a preprocessing based offline-online computation model to maximize efficiency for unbalanced datasets (e.g., the server's dataset is significantly larger than the client).
 
 ### Offline Setup Phase
 In the offline phase, the server prepares its dataset to allow for faster online queries:
