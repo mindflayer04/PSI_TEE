@@ -14,12 +14,12 @@ This repository contains the reference implementation for our **Unbalanced Priva
 ## Protocol Overview
 
 This repository implements six core protocols utilizing a preprocessing based offline-online model combined with Trusted Execution Environments (e.g., Intel SGX):
-- **PSI (Private Set Intersection)**: Computes the intersection between the client and the server datasets.
-- **PSI-CARD (Private Set Intersection Cardinality)**: Computes only the cardinality (size) of the intersection and the client receives it only.
-- **UPSI (Updatable Private Set Intersection)**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
-- **PSU (Private Set Union)**: It computes the union of both datasets securely and the server receives it.
-- **PSU-CARD**: Computes the size of the set union and the server receives it only.
-- **UPSU (Updatable Private Set Union)**: An updatable variant of unbalanced PSU protocol.
+- **PSI (Unbalanced  Private Set Intersection)**: Computes the intersection between the client and the server datasets.
+- **PSI-CA (Unbalanced  Private Set Intersection Cardinality)**: Computes only the cardinality (size) of the intersection and the client receives it only.
+- **UPSI (Updatable Unbalanced  Private Set Intersection)**: An updatable PSI variant supporting dynamic additions/deletions on the server side.
+- **PSU (Unbalanced  Private Set Union)**: It computes the union of both datasets securely and the server receives it.
+- **PSU-CA (Unbalanced Private Set Union Cardinality)**: Computes the size of the set union and the server receives it only.
+- **UPSU (Unbalanced  Updatable Private Set Union)**: An updatable variant of unbalanced PSU protocol.
 
 These protocols rely heavily on two critical cryptographic dependencies:
 - **OMap (Oblivious Map)**: Prevents access pattern leakage by utilizing the EnigMap data structure. Repository: [obliviouslabs/oram](https://github.com/obliviouslabs/oram) / [EnigMap Paper](https://eprint.iacr.org/2022/1083).
