@@ -76,7 +76,7 @@ cd applications/benchmark/
 ```
 
 Once executed, the server will successfully build the enclave and present an **interactive menu**. 
-Enter the number corresponding to the protocol you wish to benchmark (e.g., `1` for standard PSI). The server will then generate the RSA keys, initialize the Oblivious Map in the enclave, and state that it is listening on port 8080.
+Enter the number corresponding to the protocol you wish to benchmark (e.g., `1` for standard PSI). Following this, you will be prompted to enter the server set size as a power of 2 (e.g., `24` for $2^{24}$). The server will then generate the RSA keys, initialize the Oblivious Map in the enclave, and state that it is listening on port 8080.
 
 ### Step 3: Compiling and Running the Client (Machine 2)
 Inside the container on the Client Node, navigate to the benchmark application directory to compile and run the client. *Ensure you modify the `SERVER_IP` in `client.cpp` if running across a network.*

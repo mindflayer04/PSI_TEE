@@ -34,7 +34,7 @@ The execution follows the split-terminal architecture.
    ```bash
    ./algo_runner.sh 1
    ```
-   This compiles the enclave and starts listening on port 8080.
+   This compiles the enclave and starts the server. You will be prompted to enter the server set size as a power of 2 (e.g., enter `24` for $2^{24}$). The server then starts listening on port 8080.
 
 2. **Start the Client (New Terminal):**
    ```bash
